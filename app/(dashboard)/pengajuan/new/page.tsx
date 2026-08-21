@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -51,6 +51,10 @@ export default function NewPengajuanPage() {
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const selectedType = watch("type");
 
+  useEffect(() => {
+    setValue("subType", subTypeByType[selectedType][0]);
+  }, [selectedType, setValue]);
+
   async function onSubmit(data: CreateSubmissionInput) {
     setServerError(null);
     try {
@@ -100,28 +104,60 @@ export default function NewPengajuanPage() {
               Tambah Item
             </Button>
           </div>
-          {fields.map((field, index) => (
-            <div key={field.id} className="grid grid-cols-2 gap-2 rounded border p-3">
-              <Input placeholder="Nama item" {...register(`items.${index}.itemName`)} />
-              <Input placeholder="Merk/Tipe" {...register(`items.${index}.brandType`)} />
-              {selectedType === "kendaraan" && (
-                <Input type="number" placeholder="KM" {...register(`items.${index}.km`, { valueAsNumber: true })} />
-              )}
-              <Input
-                type="number"
-                placeholder="Jumlah"
-                {...register(`items.${index}.quantity`, { valueAsNumber: true })}
-              />
-              <Input placeholder="Satuan" {...register(`items.${index}.unit`)} />
-              <Textarea placeholder="Deskripsi" {...register(`items.${index}.description`)} />
-              {fields.length > 1 && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)}>
-                  Hapus
-                </Button>
-              )}
-            </div>
-          ))}
-          {errors.items && <p className="text-sm text-red-600">{errors.items.message as string}</p>}
+          {fields.map((field, index) => {
+            const itemErrors = errors.items?.[index];
+            return (
+              <div key={field.id} className="grid grid-cols-2 gap-2 rounded border p-3">
+                <div className="space-y-1">
+                  <Input placeholder="Nama item" {...register(`items.${index}.itemName`)} />
+                  {itemErrors?.itemName && (
+                    <p className="text-sm text-red-600">{itemErrors.itemName.message}</p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Input placeholder="Merk/Tipe" {...register(`items.${index}.brandType`)} />
+                  {itemErrors?.brandType && (
+                    <p className="text-sm text-red-600">{itemErrors.brandType.message}</p>
+                  )}
+                </div>
+                {selectedType === "kendaraan" && (
+                  <div className="space-y-1">
+                    <Input
+                      type="number"
+                      placeholder="KM"
+                      {...register(`items.${index}.km`, {
+                        setValueAs: (v) => (v === "" ? null : Number(v)),
+                      })}
+                    />
+                    {itemErrors?.km && <p className="text-sm text-red-600">{itemErrors.km.message}</p>}
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <Input
+                    type="number"
+                    placeholder="Jumlah"
+                    {...register(`items.${index}.quantity`, { valueAsNumber: true })}
+                  />
+                  {itemErrors?.quantity && (
+                    <p className="text-sm text-red-600">{itemErrors.quantity.message}</p>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <Input placeholder="Satuan" {...register(`items.${index}.unit`)} />
+                  {itemErrors?.unit && <p className="text-sm text-red-600">{itemErrors.unit.message}</p>}
+                </div>
+                <Textarea placeholder="Deskripsi" {...register(`items.${index}.description`)} />
+                {fields.length > 1 && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)}>
+                    Hapus
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+          {errors.items && !Array.isArray(errors.items) && (
+            <p className="text-sm text-red-600">{errors.items.message as string}</p>
+          )}
         </div>
 
         <div className="space-y-1">
