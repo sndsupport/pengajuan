@@ -23,6 +23,7 @@
     "react": "^18",
     "react-dom": "^18",
     "react-hook-form": "^7.85.0",
+    "signature_pad": "^5.1.4",
     "tailwind-merge": "^3.6.0",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.25.76"
