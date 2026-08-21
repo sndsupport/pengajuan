@@ -77,3 +77,79 @@ describe("submitSubmissionHandler (create)", () => {
     expect(result.status).toBe("diajukan");
   });
 });
+
+describe("submitSubmissionHandler (resubmit after revisi)", () => {
+  beforeEach(async () => {
+    testEnv = await initializeTestEnvironment({
+      projectId: "demo-pengajuan-submit-test",
+      firestore: {
+        host: "127.0.0.1",
+        port: 8080,
+        rules: "rules_version = '2'; service cloud.firestore { match /databases/{database}/documents { match /{document=**} { allow read, write: if true; } } }",
+      },
+    });
+    await testEnv.clearFirestore();
+  });
+
+  it("rejects resubmit when status is not perlu_revisi", async () => {
+    await seedUser("uid-admin", "admin_cabang", "WHO");
+    const admin = testEnv.unauthenticatedContext().firestore();
+    const subRef = admin.collection("submissions").doc("sub-1");
+    await subRef.set({
+      submissionNumber: "001/WHO/VIII/2026",
+      status: "diajukan",
+      requesterId: "uid-admin",
+      branch: "WHO",
+    });
+
+    const { submitSubmissionHandler } = await import("./submitSubmission");
+    await expect(
+      submitSubmissionHandler(
+        {
+          submissionId: "sub-1",
+          type: "kendaraan",
+          subType: "service_berkala",
+          requesterSignatureUrl: "https://x/y.png",
+          items: [{ itemName: "X", brandType: "X", km: 1000, quantity: 1, unit: "unit", description: "" }],
+        },
+        { auth: { uid: "uid-admin" } } as any
+      )
+    ).rejects.toThrow(/perlu_revisi/);
+  });
+
+  it("resubmits, keeps the same submissionNumber, and replaces items", async () => {
+    await seedUser("uid-admin", "admin_cabang", "WHO");
+    const admin = testEnv.unauthenticatedContext().firestore();
+    const subRef = admin.collection("submissions").doc("sub-2");
+    await subRef.set({
+      submissionNumber: "002/WHO/VIII/2026",
+      status: "perlu_revisi",
+      requesterId: "uid-admin",
+      branch: "WHO",
+      rejectionNote: "KM salah",
+    });
+    await subRef.collection("items").doc("old-item").set({ itemName: "Old", brandType: "Old", km: 1, quantity: 1, unit: "unit", description: "" });
+
+    const { submitSubmissionHandler } = await import("./submitSubmission");
+    const result = await submitSubmissionHandler(
+      {
+        submissionId: "sub-2",
+        type: "kendaraan",
+        subType: "service_berkala",
+        requesterSignatureUrl: "https://x/new.png",
+        items: [{ itemName: "Fixed", brandType: "Fixed", km: 45000, quantity: 1, unit: "unit", description: "" }],
+      },
+      { auth: { uid: "uid-admin" } } as any
+    );
+
+    expect(result.submissionNumber).toBe("002/WHO/VIII/2026");
+    expect(result.status).toBe("diajukan");
+
+    const updated = await subRef.get();
+    expect(updated.data()!.rejectionNote).toBeNull();
+
+    const items = await subRef.collection("items").get();
+    expect(items.docs).toHaveLength(1);
+    expect(items.docs[0].data().itemName).toBe("Fixed");
+  });
+});
