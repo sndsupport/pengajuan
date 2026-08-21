@@ -1,10 +1,12 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterAll } from "vitest";
 import { initializeTestEnvironment, RulesTestEnvironment } from "@firebase/rules-unit-testing";
 import { getNextSubmissionNumber } from "./counters";
 
 let testEnv: RulesTestEnvironment;
 
 describe("getNextSubmissionNumber", () => {
+  afterAll(() => testEnv.cleanup());
+
   beforeEach(async () => {
     testEnv = await initializeTestEnvironment({
       projectId: "demo-pengajuan-counters-test",
