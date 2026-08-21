@@ -18,7 +18,7 @@ export const itemSchema = z.object({
 
 export const createSubmissionSchema = z
   .object({
-    submissionId: z.string().optional(),
+    submissionId: z.string().nullish(),
     type: submissionTypeSchema,
     subType: z.string(),
     requesterSignatureUrl: z.string().url(),
@@ -35,7 +35,7 @@ export const reviewSubmissionSchema = z
   .object({
     submissionId: z.string().min(1),
     decision: z.enum(["approve", "reject"]),
-    rejectionNote: z.string().optional(),
+    rejectionNote: z.string().nullish(),
   })
   .refine((data) => data.decision !== "reject" || (data.rejectionNote && data.rejectionNote.trim().length > 0), {
     message: "rejectionNote wajib diisi saat reject",
