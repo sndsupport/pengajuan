@@ -13,6 +13,7 @@ type SubmissionRow = { id: string; submissionNumber: string; type: string; statu
 export default function PengajuanListPage() {
   const { appUser } = useAuth();
   const [rows, setRows] = useState<SubmissionRow[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!appUser) return;
@@ -21,16 +22,23 @@ export default function PengajuanListPage() {
       where("requesterId", "==", appUser.uid),
       orderBy("submittedAt", "desc")
     );
-    return onSnapshot(q, (snap) => {
-      setRows(
-        snap.docs.map((d) => ({
-          id: d.id,
-          submissionNumber: d.data().submissionNumber,
-          type: d.data().type,
-          status: d.data().status,
-        }))
-      );
-    });
+    return onSnapshot(
+      q,
+      (snap) => {
+        setError(null);
+        setRows(
+          snap.docs.map((d) => ({
+            id: d.id,
+            submissionNumber: d.data().submissionNumber,
+            type: d.data().type,
+            status: d.data().status,
+          }))
+        );
+      },
+      (err) => {
+        setError(err.code);
+      }
+    );
   }, [appUser]);
 
   return (
@@ -50,7 +58,12 @@ export default function PengajuanListPage() {
             <StatusBadge status={row.status} />
           </li>
         ))}
-        {rows.length === 0 && <li className="p-3 text-sm text-muted-foreground">Belum ada pengajuan.</li>}
+        {error && (
+          <li className="p-3 text-sm text-red-600">Gagal memuat data. Coba muat ulang halaman.</li>
+        )}
+        {!error && rows.length === 0 && (
+          <li className="p-3 text-sm text-muted-foreground">Belum ada pengajuan.</li>
+        )}
       </ul>
     </main>
   );

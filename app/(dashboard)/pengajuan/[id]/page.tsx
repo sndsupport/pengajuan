@@ -13,28 +13,49 @@ type SubmissionDoc = DocumentData & { id: string };
 export default function PengajuanDetailPage({ params }: { params: { id: string } }) {
   const [submission, setSubmission] = useState<SubmissionDoc | null>(null);
   const [history, setHistory] = useState<StatusHistoryEntry[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubSub = onSnapshot(doc(db, "submissions", params.id), (snap) => {
-      setSubmission(snap.exists() ? { id: snap.id, ...snap.data() } : null);
-    });
+    const unsubSub = onSnapshot(
+      doc(db, "submissions", params.id),
+      (snap) => {
+        setSubmission(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+      },
+      (err) => {
+        setError(err.code);
+      }
+    );
     const historyQuery = query(collection(db, "submissions", params.id, "statusHistory"), orderBy("timestamp", "asc"));
-    const unsubHistory = onSnapshot(historyQuery, (snap) => {
-      setHistory(
-        snap.docs.map((d) => ({
-          id: d.id,
-          status: d.data().status,
-          note: d.data().note,
-          actorRole: d.data().actorRole,
-          timestamp: d.data().timestamp?.toDate() ?? new Date(),
-        }))
-      );
-    });
+    const unsubHistory = onSnapshot(
+      historyQuery,
+      (snap) => {
+        setHistory(
+          snap.docs.map((d) => ({
+            id: d.id,
+            status: d.data().status,
+            note: d.data().note,
+            actorRole: d.data().actorRole,
+            timestamp: d.data().timestamp?.toDate() ?? new Date(),
+          }))
+        );
+      },
+      (err) => {
+        setError(err.code);
+      }
+    );
     return () => {
       unsubSub();
       unsubHistory();
     };
   }, [params.id]);
+
+  if (error) {
+    return (
+      <main className="p-6 text-sm text-red-600">
+        Pengajuan tidak ditemukan atau Anda tidak punya akses.
+      </main>
+    );
+  }
 
   if (!submission) {
     return <main className="p-6 text-sm text-muted-foreground">Memuat...</main>;
