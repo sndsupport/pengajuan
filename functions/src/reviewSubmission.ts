@@ -20,7 +20,7 @@ export async function reviewSubmissionHandler(rawData: unknown, context: CallerC
 
   const parsed = reviewSubmissionSchema.safeParse(rawData);
   if (!parsed.success) {
-    throw new HttpsError("invalid-argument", parsed.error.message);
+    throw new HttpsError("invalid-argument", parsed.error.issues[0]?.message ?? "Data tidak valid.");
   }
   const input: ReviewSubmissionInput = parsed.data;
 
