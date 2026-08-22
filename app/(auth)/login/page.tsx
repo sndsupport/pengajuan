@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase/client";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,8 +21,10 @@ export default function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push("/pengajuan");
+      const credential = await signInWithEmailAndPassword(auth, email, password);
+      const snap = await getDoc(doc(db, "users", credential.user.uid));
+      const role = snap.exists() ? (snap.data().role as string) : null;
+      router.push(role === "spv" || role === "management" ? "/persetujuan" : "/pengajuan");
     } catch {
       setError("Email atau password salah.");
     } finally {
