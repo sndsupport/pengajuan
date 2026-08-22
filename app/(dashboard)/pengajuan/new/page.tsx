@@ -5,7 +5,8 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
-import { firebaseApp } from "@/lib/firebase/client";
+import { doc, getDoc, collection, getDocs } from "firebase/firestore";
+import { firebaseApp, db } from "@/lib/firebase/client";
 import { createSubmissionSchema, CreateSubmissionInput, subTypeByType } from "@/lib/schemas/submission";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,8 @@ export default function NewPengajuanPage() {
   const searchParams = useSearchParams();
   const resubmitId = searchParams.get("resubmit") ?? undefined;
   const [serverError, setServerError] = useState<string | null>(null);
+  const [isLoadingResubmit, setIsLoadingResubmit] = useState(!!resubmitId);
+  const [resubmitError, setResubmitError] = useState<string | null>(null);
 
   const {
     register,
@@ -36,6 +39,7 @@ export default function NewPengajuanPage() {
     handleSubmit,
     watch,
     setValue,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<CreateSubmissionInput>({
     resolver: zodResolver(createSubmissionSchema),
@@ -50,10 +54,79 @@ export default function NewPengajuanPage() {
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const selectedType = watch("type");
+  const typeField = register("type");
+
+  // When the user changes "Jenis Pengajuan" via the dropdown, default subType
+  // to the first valid option for the new type. This is wired as an onChange
+  // handler (rather than a useEffect on the watched value) specifically so it
+  // only fires on user interaction — a useEffect keyed on `selectedType` would
+  // also fire right after `reset()` populates the resubmit data below, and
+  // clobber the freshly-loaded subType with the default.
+  function handleTypeChange(event: React.ChangeEvent<HTMLSelectElement>) {
+    typeField.onChange(event);
+    const nextType = event.target.value as CreateSubmissionInput["type"];
+    setValue("subType", subTypeByType[nextType][0]);
+  }
 
   useEffect(() => {
-    setValue("subType", subTypeByType[selectedType][0]);
-  }, [selectedType, setValue]);
+    if (!resubmitId) return;
+    const id = resubmitId;
+    let cancelled = false;
+
+    async function loadResubmitData() {
+      setIsLoadingResubmit(true);
+      setResubmitError(null);
+      try {
+        const submissionSnap = await getDoc(doc(db, "submissions", id));
+        if (!submissionSnap.exists()) {
+          throw new Error("Pengajuan tidak ditemukan.");
+        }
+        const submissionData = submissionSnap.data();
+        const itemsSnap = await getDocs(collection(db, "submissions", id, "items"));
+        const items = itemsSnap.docs.map((itemDoc) => {
+          const data = itemDoc.data();
+          return {
+            itemName: data.itemName ?? "",
+            brandType: data.brandType ?? "",
+            km: data.km ?? null,
+            quantity: data.quantity ?? 1,
+            unit: data.unit ?? "",
+            description: data.description ?? "",
+          };
+        });
+
+        if (cancelled) return;
+
+        reset({
+          submissionId: id,
+          type: submissionData?.type ?? "kendaraan",
+          subType: submissionData?.subType ?? "service_berkala",
+          requesterSignatureUrl: "",
+          items:
+            items.length > 0
+              ? items
+              : [{ itemName: "", brandType: "", km: null, quantity: 1, unit: "", description: "" }],
+        });
+      } catch (err) {
+        if (cancelled) return;
+        const code = (err as { code?: string } | undefined)?.code;
+        if (code === "permission-denied") {
+          setResubmitError("Anda tidak punya akses ke pengajuan ini.");
+        } else if (err instanceof Error && err.message === "Pengajuan tidak ditemukan.") {
+          setResubmitError(err.message);
+        } else {
+          setResubmitError("Gagal memuat data pengajuan untuk direvisi.");
+        }
+      } finally {
+        if (!cancelled) setIsLoadingResubmit(false);
+      }
+    }
+
+    loadResubmitData();
+    return () => {
+      cancelled = true;
+    };
+  }, [resubmitId, reset]);
 
   async function onSubmit(data: CreateSubmissionInput) {
     setServerError(null);
@@ -66,13 +139,27 @@ export default function NewPengajuanPage() {
     }
   }
 
+  if (isLoadingResubmit) {
+    return (
+      <main className="mx-auto max-w-2xl p-6 text-sm text-muted-foreground">
+        Memuat data pengajuan...
+      </main>
+    );
+  }
+
+  if (resubmitError) {
+    return (
+      <main className="mx-auto max-w-2xl p-6 text-sm text-red-600">{resubmitError}</main>
+    );
+  }
+
   return (
     <main className="mx-auto max-w-2xl space-y-6 p-6">
       <h1 className="text-xl font-semibold">Buat Pengajuan</h1>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-1">
           <Label htmlFor="type">Jenis Pengajuan</Label>
-          <select id="type" {...register("type")} className="w-full rounded border p-2">
+          <select id="type" {...typeField} onChange={handleTypeChange} className="w-full rounded border p-2">
             <option value="kendaraan">Kendaraan</option>
             <option value="perlengkapan">Perlengkapan</option>
           </select>
