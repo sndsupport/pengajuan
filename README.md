@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pengajuan Kendaraan & Perlengkapan
 
-## Getting Started
+Aplikasi internal PT Tridaya Sinergi Indonesia untuk pengajuan kendaraan (mobil/motor) dan perlengkapan, lengkap dengan alur review dan tanda tangan digital. Lihat [CLAUDE.md](./CLAUDE.md) untuk detail lengkap ringkasan bisnis, alur status, dan model data.
 
-First, run the development server:
+## Tech Stack
+
+Next.js 14 (App Router) + TypeScript + Tailwind CSS + shadcn/ui, dengan Firebase (Auth, Firestore, Cloud Functions) sebagai backend. Lihat [CLAUDE.md](./CLAUDE.md) untuk tabel tech stack lengkap.
+
+## Development
+
+Proyek ini dikembangkan memakai Firebase Emulator Suite — jangan konek ke project Firebase produksi untuk development sehari-hari.
 
 ```bash
+# Install dependencies
+npm install
+npm --prefix functions install
+
+# Salin konfigurasi environment untuk emulator
+cp .env.local.example .env.local
+
+# Terminal 1: jalankan emulator (Auth, Firestore, Functions)
+npm --prefix functions run build
+npx firebase emulators:start --only auth,firestore,functions --project pengajuan-kendaraan-perlengkapan
+
+# Terminal 2: seed data user contoh untuk tiap role
+npm run seed
+
+# Terminal 3: jalankan aplikasi
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka [http://localhost:3000](http://localhost:3000). Emulator UI (lihat data Firestore/Auth langsung) ada di [http://localhost:4000](http://localhost:4000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Testing
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm test                       # schema, Firestore rules, dan test Cloud Functions (root)
+npm --prefix functions run test # test Cloud Functions saja
+```
 
-## Learn More
+Butuh emulator Firestore (`auth,firestore`) menyala untuk sebagian besar test di atas.
 
-To learn more about Next.js, take a look at the following resources:
+## Dokumentasi
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [`CLAUDE.md`](./CLAUDE.md) — brief proyek, model data, konvensi kode
+- [`docs/superpowers/specs/`](./docs/superpowers/specs/) — spec desain per fitur
+- [`docs/superpowers/plans/`](./docs/superpowers/plans/) — plan implementasi per fitur
