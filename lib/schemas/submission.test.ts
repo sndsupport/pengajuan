@@ -35,6 +35,11 @@ describe("createSubmissionSchema", () => {
     };
     expect(createSubmissionSchema.safeParse(payload).success).toBe(true);
   });
+
+  it("allows submissionId to be null (httpsCallable serializes an absent field as null on the wire)", () => {
+    const result = createSubmissionSchema.safeParse({ ...validPayload, submissionId: null });
+    expect(result.success).toBe(true);
+  });
 });
 
 describe("reviewSubmissionSchema", () => {
@@ -51,5 +56,15 @@ describe("reviewSubmissionSchema", () => {
   it("accepts approve without rejectionNote", () => {
     const result = reviewSubmissionSchema.safeParse({ submissionId: "abc", decision: "approve" });
     expect(result.success).toBe(true);
+  });
+
+  it("accepts approve with rejectionNote null (httpsCallable serializes an absent field as null on the wire)", () => {
+    const result = reviewSubmissionSchema.safeParse({ submissionId: "abc", decision: "approve", rejectionNote: null });
+    expect(result.success).toBe(true);
+  });
+
+  it("still rejects reject with rejectionNote null", () => {
+    const result = reviewSubmissionSchema.safeParse({ submissionId: "abc", decision: "reject", rejectionNote: null });
+    expect(result.success).toBe(false);
   });
 });
