@@ -15,7 +15,7 @@ if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true") {
   }
 }
 
-export type UploadedFile = { fileUrl: string; fileName: string; fileType: string };
+export type UploadedFile = { fileId: string; fileUrl: string; fileName: string; fileType: string };
 
 const PURPOSE_CONFIG = {
   attachment: {

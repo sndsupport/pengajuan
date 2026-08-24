@@ -88,13 +88,45 @@ describe("uploadFileHandler", () => {
     ).rejects.toThrow(/maksimal/);
   });
 
-  it("uploads a valid attachment and returns Drive metadata", async () => {
+  it("uploads a valid attachment and returns the Drive webViewLink as fileUrl", async () => {
     await seedUser("uid-admin", "admin_cabang");
     uploadToDriveMock.mockResolvedValue({ fileId: "file-1", webViewLink: "https://drive.google.com/file/d/file-1/view" });
     const { uploadFileHandler } = await import("./uploadFile");
     const result = await uploadFileHandler(VALID_PAYLOAD, { auth: { uid: "uid-admin" } } as any);
-    expect(result).toEqual({ fileUrl: "https://drive.google.com/file/d/file-1/view", fileName: "nota.png", fileType: "image/png" });
+    expect(result).toEqual({
+      fileId: "file-1",
+      fileUrl: "https://drive.google.com/file/d/file-1/view",
+      fileName: "nota.png",
+      fileType: "image/png",
+    });
     expect(uploadToDriveMock).toHaveBeenCalledWith({ fileName: "nota.png", mimeType: "image/png", buffer: expect.any(Buffer) });
+  });
+
+  it("uploads a valid signature and returns a direct-content Drive link (not the webViewLink)", async () => {
+    await seedUser("uid-admin", "admin_cabang");
+    uploadToDriveMock.mockResolvedValue({ fileId: "file-2", webViewLink: "https://drive.google.com/file/d/file-2/view" });
+    const { uploadFileHandler } = await import("./uploadFile");
+    const result = await uploadFileHandler(
+      { purpose: "signature", fileName: "ttd.png", fileType: "image/png", fileData: "data:image/png;base64,aGVsbG8=" },
+      { auth: { uid: "uid-admin" } } as any
+    );
+    expect(result).toEqual({
+      fileId: "file-2",
+      fileUrl: "https://drive.google.com/uc?export=view&id=file-2",
+      fileName: "ttd.png",
+      fileType: "image/png",
+    });
+  });
+
+  it("rejects when the fileData data-URL's mime prefix disagrees with the declared fileType", async () => {
+    await seedUser("uid-admin", "admin_cabang");
+    const { uploadFileHandler } = await import("./uploadFile");
+    await expect(
+      uploadFileHandler(
+        { purpose: "attachment", fileName: "nota.png", fileType: "image/png", fileData: "data:application/pdf;base64,aGVsbG8=" },
+        { auth: { uid: "uid-admin" } } as any
+      )
+    ).rejects.toThrow(/tidak didukung/);
   });
 
   it("surfaces a generic error if the Drive upload fails", async () => {

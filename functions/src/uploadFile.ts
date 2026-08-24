@@ -38,7 +38,19 @@ export async function uploadFileHandler(rawData: unknown, context: CallerContext
     throw new HttpsError("invalid-argument", "Tipe file tidak didukung.");
   }
 
-  const base64Payload = input.fileData.includes(",") ? input.fileData.split(",")[1] : input.fileData;
+  // input.fileData is normally a data URL like "data:image/png;base64,....".
+  // The declared input.fileType is client-supplied, so cross-check it against
+  // the mime type embedded in the data URL's own prefix when one is present
+  // (partial mitigation only — this doesn't inspect the actual file bytes).
+  const commaIndex = input.fileData.indexOf(",");
+  if (commaIndex !== -1) {
+    const prefix = input.fileData.slice(0, commaIndex);
+    const mimeMatch = prefix.match(/^data:([^;]+)/);
+    if (mimeMatch && mimeMatch[1] !== input.fileType) {
+      throw new HttpsError("invalid-argument", "Tipe file tidak didukung.");
+    }
+  }
+  const base64Payload = commaIndex !== -1 ? input.fileData.slice(commaIndex + 1) : input.fileData;
   const buffer = Buffer.from(base64Payload, "base64");
 
   if (buffer.byteLength > MAX_SIZE_BYTES[input.purpose]) {
@@ -47,12 +59,18 @@ export async function uploadFileHandler(rawData: unknown, context: CallerContext
   }
 
   try {
-    const { webViewLink } = await uploadToDrive({
+    const { fileId, webViewLink } = await uploadToDrive({
       fileName: input.fileName,
       mimeType: input.fileType,
       buffer,
     });
-    return { fileUrl: webViewLink, fileName: input.fileName, fileType: input.fileType };
+    // webViewLink is a Drive HTML viewer page, not raw image bytes — fine for
+    // attachments (meant to be opened in a new tab) but useless as an <img src>.
+    // Signatures need a link that actually serves the file's bytes so they can
+    // be embedded directly (e.g. in the generated PDF).
+    const fileUrl =
+      input.purpose === "signature" ? `https://drive.google.com/uc?export=view&id=${fileId}` : webViewLink;
+    return { fileId, fileUrl, fileName: input.fileName, fileType: input.fileType };
   } catch (error) {
     console.error("uploadFile: Drive upload failed", error);
     throw new HttpsError("internal", "Gagal upload file, coba lagi.");

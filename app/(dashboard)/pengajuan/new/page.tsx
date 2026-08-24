@@ -35,6 +35,7 @@ export default function NewPengajuanPage() {
   const [isLoadingResubmit, setIsLoadingResubmit] = useState(!!resubmitId);
   const [resubmitError, setResubmitError] = useState<string | null>(null);
   const [signatureMode, setSignatureMode] = useState<"gambar" | "upload">("gambar");
+  const [signatureFileName, setSignatureFileName] = useState<string | null>(null);
 
   const {
     register,
@@ -80,6 +81,7 @@ export default function NewPengajuanPage() {
   function handleSignatureModeChange(mode: "gambar" | "upload") {
     setSignatureMode(mode);
     setValue("requesterSignatureUrl", "");
+    setSignatureFileName(null);
   }
 
   useEffect(() => {
@@ -112,6 +114,7 @@ export default function NewPengajuanPage() {
         const attachments = attachmentsSnap.docs.map((attachmentDoc) => {
           const data = attachmentDoc.data();
           return {
+            fileId: data.fileId ?? "",
             fileUrl: data.fileUrl ?? "",
             fileName: data.fileName ?? "",
             fileType: data.fileType ?? "",
@@ -307,10 +310,18 @@ export default function NewPengajuanPage() {
           {signatureMode === "gambar" ? (
             <SignaturePad onChange={(dataUrl) => setValue("requesterSignatureUrl", dataUrl ?? "")} />
           ) : (
-            <FileUpload
-              purpose="signature"
-              onUploaded={(file) => setValue("requesterSignatureUrl", file.fileUrl)}
-            />
+            <>
+              <FileUpload
+                purpose="signature"
+                onUploaded={(file) => {
+                  setValue("requesterSignatureUrl", file.fileUrl);
+                  setSignatureFileName(file.fileName);
+                }}
+              />
+              {signatureFileName && (
+                <p className="text-sm text-muted-foreground">Berhasil diupload: {signatureFileName}</p>
+              )}
+            </>
           )}
           {errors.requesterSignatureUrl && <p className="text-sm text-red-600">Tanda tangan wajib diisi.</p>}
         </div>

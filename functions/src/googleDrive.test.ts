@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const filesCreate = vi.fn();
+const filesDelete = vi.fn();
 const permissionsCreate = vi.fn();
 
 vi.mock("googleapis", () => ({
@@ -9,7 +10,7 @@ vi.mock("googleapis", () => ({
       GoogleAuth: vi.fn().mockImplementation(() => ({})),
     },
     drive: vi.fn().mockImplementation(() => ({
-      files: { create: filesCreate },
+      files: { create: filesCreate, delete: filesDelete },
       permissions: { create: permissionsCreate },
     })),
   },
@@ -18,6 +19,7 @@ vi.mock("googleapis", () => ({
 describe("uploadToDrive", () => {
   beforeEach(() => {
     filesCreate.mockReset();
+    filesDelete.mockReset();
     permissionsCreate.mockReset();
     process.env.DRIVE_FOLDER_ID = "folder-123";
   });
@@ -62,5 +64,25 @@ describe("uploadToDrive", () => {
     await expect(
       uploadToDrive({ fileName: "x.png", mimeType: "image/png", buffer: Buffer.from("x") })
     ).rejects.toThrow(/id\/webViewLink/);
+  });
+});
+
+describe("deleteFromDrive", () => {
+  beforeEach(() => {
+    filesDelete.mockReset();
+    process.env.DRIVE_FOLDER_ID = "folder-123";
+  });
+
+  it("calls drive.files.delete with the given fileId", async () => {
+    filesDelete.mockResolvedValue({});
+    const { deleteFromDrive } = await import("./googleDrive");
+    await deleteFromDrive("file-abc");
+    expect(filesDelete).toHaveBeenCalledWith({ fileId: "file-abc" });
+  });
+
+  it("propagates errors from the Drive API", async () => {
+    filesDelete.mockRejectedValue(new Error("not found"));
+    const { deleteFromDrive } = await import("./googleDrive");
+    await expect(deleteFromDrive("missing-file")).rejects.toThrow(/not found/);
   });
 });

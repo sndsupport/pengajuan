@@ -44,7 +44,9 @@ describe("createSubmissionSchema", () => {
   it("accepts a payload with attachments and preserves them", () => {
     const payload = {
       ...validPayload,
-      attachments: [{ fileUrl: "https://drive.google.com/file/d/abc/view", fileName: "nota.png", fileType: "image/png" }],
+      attachments: [
+        { fileId: "file-abc", fileUrl: "https://drive.google.com/file/d/abc/view", fileName: "nota.png", fileType: "image/png" },
+      ],
     };
     const result = createSubmissionSchema.safeParse(payload);
     expect(result.success).toBe(true);
@@ -64,7 +66,15 @@ describe("createSubmissionSchema", () => {
   it("rejects an attachment with an invalid fileUrl", () => {
     const payload = {
       ...validPayload,
-      attachments: [{ fileUrl: "not-a-url", fileName: "nota.png", fileType: "image/png" }],
+      attachments: [{ fileId: "file-abc", fileUrl: "not-a-url", fileName: "nota.png", fileType: "image/png" }],
+    };
+    expect(createSubmissionSchema.safeParse(payload).success).toBe(false);
+  });
+
+  it("rejects an attachment missing fileId", () => {
+    const payload = {
+      ...validPayload,
+      attachments: [{ fileUrl: "https://drive.google.com/file/d/abc/view", fileName: "nota.png", fileType: "image/png" }],
     };
     expect(createSubmissionSchema.safeParse(payload).success).toBe(false);
   });

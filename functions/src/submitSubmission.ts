@@ -3,6 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { db } from "./admin";
 import { createSubmissionSchema, CreateSubmissionInput } from "./schemas";
 import { getNextSubmissionNumber } from "./counters";
+import { deleteFromDrive } from "./googleDrive";
 
 interface CallerContext {
   auth?: { uid: string };
@@ -133,6 +134,22 @@ async function resubmitAfterRevisi(
   });
 
   await batch.commit();
+
+  // Best-effort cleanup: delete the Drive file behind each attachment doc that
+  // was just removed (i.e. not carried over into the new payload). This must
+  // never block or fail the resubmit itself, which has already committed above.
+  const keptFileIds = new Set(input.attachments.map((attachment) => attachment.fileId));
+  await Promise.all(
+    existingAttachments.docs.map(async (doc) => {
+      const fileId = doc.data().fileId as string | undefined;
+      if (!fileId || keptFileIds.has(fileId)) return;
+      try {
+        await deleteFromDrive(fileId);
+      } catch (error) {
+        console.error(`resubmitAfterRevisi: failed to delete orphaned Drive file ${fileId}`, error);
+      }
+    })
+  );
 
   return { submissionId: submissionRef.id, submissionNumber: submission.submissionNumber as string, status: "diajukan" as const };
 }

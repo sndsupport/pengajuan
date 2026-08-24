@@ -17,6 +17,7 @@ export const itemSchema = z.object({
 });
 
 export const attachmentSchema = z.object({
+  fileId: z.string().min(1),
   fileUrl: z.string().url(),
   fileName: z.string().min(1),
   fileType: z.string().min(1),

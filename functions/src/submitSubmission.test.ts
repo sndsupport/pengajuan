@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll } from "vitest";
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
 import { initializeTestEnvironment, RulesTestEnvironment } from "@firebase/rules-unit-testing";
 import functionsTest from "firebase-functions-test";
 import { HttpsError } from "firebase-functions/v2/https";
@@ -11,6 +11,13 @@ process.env.GCLOUD_PROJECT = "demo-pengajuan-submit-test";
 
 const fft = functionsTest({ projectId: "demo-pengajuan-submit-test" }, undefined);
 let testEnv: RulesTestEnvironment;
+
+// resubmitAfterRevisi does best-effort Drive cleanup of removed attachments;
+// mock it so tests don't make real network calls and so we can assert on it.
+const deleteFromDriveMock = vi.fn();
+vi.mock("./googleDrive", () => ({
+  deleteFromDrive: deleteFromDriveMock,
+}));
 
 async function seedUser(uid: string, role: string, branch: string) {
   const admin = testEnv.unauthenticatedContext().firestore();
@@ -36,6 +43,8 @@ describe("submitSubmissionHandler (create)", () => {
       },
     });
     await testEnv.clearFirestore();
+    deleteFromDriveMock.mockReset();
+    deleteFromDriveMock.mockResolvedValue(undefined);
   });
 
   afterAll(() => fft.cleanup());
@@ -86,7 +95,9 @@ describe("submitSubmissionHandler (create)", () => {
         subType: "service_berkala",
         requesterSignatureUrl: "https://x/y.png",
         items: validItems,
-        attachments: [{ fileUrl: "https://drive.google.com/file/d/abc/view", fileName: "nota.png", fileType: "image/png" }],
+        attachments: [
+          { fileId: "file-abc", fileUrl: "https://drive.google.com/file/d/abc/view", fileName: "nota.png", fileType: "image/png" },
+        ],
       },
       { auth: { uid: "uid-admin2" } } as any
     );
@@ -113,6 +124,8 @@ describe("submitSubmissionHandler (resubmit after revisi)", () => {
       },
     });
     await testEnv.clearFirestore();
+    deleteFromDriveMock.mockReset();
+    deleteFromDriveMock.mockResolvedValue(undefined);
   });
 
   it("rejects resubmit when status is not perlu_revisi", async () => {
@@ -189,7 +202,7 @@ describe("submitSubmissionHandler (resubmit after revisi)", () => {
       rejectionNote: "Lampiran kurang jelas",
     });
     await subRef.collection("items").doc("old-item").set({ itemName: "Old", brandType: "Old", km: 1, quantity: 1, unit: "unit", description: "" });
-    await subRef.collection("attachments").doc("old-attachment").set({ fileUrl: "https://drive.google.com/file/d/old/view", fileName: "lama.png", fileType: "image/png" });
+    await subRef.collection("attachments").doc("old-attachment").set({ fileId: "file-old", fileUrl: "https://drive.google.com/file/d/old/view", fileName: "lama.png", fileType: "image/png" });
 
     const { submitSubmissionHandler } = await import("./submitSubmission");
     await submitSubmissionHandler(
@@ -199,7 +212,9 @@ describe("submitSubmissionHandler (resubmit after revisi)", () => {
         subType: "service_berkala",
         requesterSignatureUrl: "https://x/new.png",
         items: [{ itemName: "Fixed", brandType: "Fixed", km: 45000, quantity: 1, unit: "unit", description: "" }],
-        attachments: [{ fileUrl: "https://drive.google.com/file/d/new/view", fileName: "baru.png", fileType: "image/png" }],
+        attachments: [
+          { fileId: "file-new", fileUrl: "https://drive.google.com/file/d/new/view", fileName: "baru.png", fileType: "image/png" },
+        ],
       },
       { auth: { uid: "uid-admin" } } as any
     );
@@ -207,6 +222,8 @@ describe("submitSubmissionHandler (resubmit after revisi)", () => {
     const attachments = await subRef.collection("attachments").get();
     expect(attachments.docs).toHaveLength(1);
     expect(attachments.docs[0].data().fileName).toBe("baru.png");
+    expect(deleteFromDriveMock).toHaveBeenCalledWith("file-old");
+    expect(deleteFromDriveMock).not.toHaveBeenCalledWith("file-new");
   });
 
   it("removes all attachments on resubmit when the payload has none", async () => {
@@ -221,7 +238,7 @@ describe("submitSubmissionHandler (resubmit after revisi)", () => {
       rejectionNote: "Tidak perlu lampiran",
     });
     await subRef.collection("items").doc("old-item").set({ itemName: "Old", brandType: "Old", km: 1, quantity: 1, unit: "unit", description: "" });
-    await subRef.collection("attachments").doc("old-attachment").set({ fileUrl: "https://drive.google.com/file/d/old/view", fileName: "lama.png", fileType: "image/png" });
+    await subRef.collection("attachments").doc("old-attachment").set({ fileId: "file-old", fileUrl: "https://drive.google.com/file/d/old/view", fileName: "lama.png", fileType: "image/png" });
 
     const { submitSubmissionHandler } = await import("./submitSubmission");
     await submitSubmissionHandler(
@@ -237,5 +254,38 @@ describe("submitSubmissionHandler (resubmit after revisi)", () => {
 
     const attachments = await subRef.collection("attachments").get();
     expect(attachments.docs).toHaveLength(0);
+    expect(deleteFromDriveMock).toHaveBeenCalledWith("file-old");
+  });
+
+  it("does not delete Drive files that are unchanged (kept) across resubmit", async () => {
+    await seedUser("uid-admin", "admin_cabang", "WHO");
+    const admin = testEnv.unauthenticatedContext().firestore();
+    const subRef = admin.collection("submissions").doc("sub-5");
+    await subRef.set({
+      submissionNumber: "005/WHO/VIII/2026",
+      status: "perlu_revisi",
+      requesterId: "uid-admin",
+      branch: "WHO",
+      rejectionNote: "Perbaiki item",
+    });
+    await subRef.collection("items").doc("old-item").set({ itemName: "Old", brandType: "Old", km: 1, quantity: 1, unit: "unit", description: "" });
+    await subRef.collection("attachments").doc("kept-attachment").set({ fileId: "file-kept", fileUrl: "https://drive.google.com/file/d/kept/view", fileName: "kept.png", fileType: "image/png" });
+
+    const { submitSubmissionHandler } = await import("./submitSubmission");
+    await submitSubmissionHandler(
+      {
+        submissionId: "sub-5",
+        type: "kendaraan",
+        subType: "service_berkala",
+        requesterSignatureUrl: "https://x/new.png",
+        items: [{ itemName: "Fixed", brandType: "Fixed", km: 45000, quantity: 1, unit: "unit", description: "" }],
+        attachments: [
+          { fileId: "file-kept", fileUrl: "https://drive.google.com/file/d/kept/view", fileName: "kept.png", fileType: "image/png" },
+        ],
+      },
+      { auth: { uid: "uid-admin" } } as any
+    );
+
+    expect(deleteFromDriveMock).not.toHaveBeenCalled();
   });
 });
