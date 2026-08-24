@@ -8,6 +8,11 @@ export default defineConfig({
     // collide with the functions/src/*.test.ts sources and fail to load
     // (they're CommonJS output and vitest refuses to `require()` itself from
     // a CJS module).
-    exclude: [...configDefaults.exclude, "functions/lib/**"],
+    //
+    // functions/src is excluded too: those tests depend on functions/'s own
+    // node_modules (e.g. googleapis, firebase-functions-test) and its own
+    // vitest.config.mts, and must be run from within functions/ (`cd functions
+    // && npx vitest run`) rather than picked up by this root config.
+    exclude: [...configDefaults.exclude, "functions/lib/**", "functions/src/**"],
   },
 });
