@@ -76,6 +76,30 @@ describe("submitSubmissionHandler (create)", () => {
     expect(result.submissionNumber).toMatch(/^001\/WHO\/[IVX]+\/\d{4}$/);
     expect(result.status).toBe("diajukan");
   });
+
+  it("writes attachments to the attachments subcollection when creating a new submission", async () => {
+    await seedUser("uid-admin2", "admin_cabang", "WHO");
+    const { submitSubmissionHandler } = await import("./submitSubmission");
+    const result = await submitSubmissionHandler(
+      {
+        type: "kendaraan",
+        subType: "service_berkala",
+        requesterSignatureUrl: "https://x/y.png",
+        items: validItems,
+        attachments: [{ fileUrl: "https://drive.google.com/file/d/abc/view", fileName: "nota.png", fileType: "image/png" }],
+      },
+      { auth: { uid: "uid-admin2" } } as any
+    );
+
+    const admin = testEnv.unauthenticatedContext().firestore();
+    const attachments = await admin
+      .collection("submissions")
+      .doc(result.submissionId)
+      .collection("attachments")
+      .get();
+    expect(attachments.docs).toHaveLength(1);
+    expect(attachments.docs[0].data().fileName).toBe("nota.png");
+  });
 });
 
 describe("submitSubmissionHandler (resubmit after revisi)", () => {
@@ -151,5 +175,67 @@ describe("submitSubmissionHandler (resubmit after revisi)", () => {
     const items = await subRef.collection("items").get();
     expect(items.docs).toHaveLength(1);
     expect(items.docs[0].data().itemName).toBe("Fixed");
+  });
+
+  it("replaces attachments on resubmit", async () => {
+    await seedUser("uid-admin", "admin_cabang", "WHO");
+    const admin = testEnv.unauthenticatedContext().firestore();
+    const subRef = admin.collection("submissions").doc("sub-3");
+    await subRef.set({
+      submissionNumber: "003/WHO/VIII/2026",
+      status: "perlu_revisi",
+      requesterId: "uid-admin",
+      branch: "WHO",
+      rejectionNote: "Lampiran kurang jelas",
+    });
+    await subRef.collection("items").doc("old-item").set({ itemName: "Old", brandType: "Old", km: 1, quantity: 1, unit: "unit", description: "" });
+    await subRef.collection("attachments").doc("old-attachment").set({ fileUrl: "https://drive.google.com/file/d/old/view", fileName: "lama.png", fileType: "image/png" });
+
+    const { submitSubmissionHandler } = await import("./submitSubmission");
+    await submitSubmissionHandler(
+      {
+        submissionId: "sub-3",
+        type: "kendaraan",
+        subType: "service_berkala",
+        requesterSignatureUrl: "https://x/new.png",
+        items: [{ itemName: "Fixed", brandType: "Fixed", km: 45000, quantity: 1, unit: "unit", description: "" }],
+        attachments: [{ fileUrl: "https://drive.google.com/file/d/new/view", fileName: "baru.png", fileType: "image/png" }],
+      },
+      { auth: { uid: "uid-admin" } } as any
+    );
+
+    const attachments = await subRef.collection("attachments").get();
+    expect(attachments.docs).toHaveLength(1);
+    expect(attachments.docs[0].data().fileName).toBe("baru.png");
+  });
+
+  it("removes all attachments on resubmit when the payload has none", async () => {
+    await seedUser("uid-admin", "admin_cabang", "WHO");
+    const admin = testEnv.unauthenticatedContext().firestore();
+    const subRef = admin.collection("submissions").doc("sub-4");
+    await subRef.set({
+      submissionNumber: "004/WHO/VIII/2026",
+      status: "perlu_revisi",
+      requesterId: "uid-admin",
+      branch: "WHO",
+      rejectionNote: "Tidak perlu lampiran",
+    });
+    await subRef.collection("items").doc("old-item").set({ itemName: "Old", brandType: "Old", km: 1, quantity: 1, unit: "unit", description: "" });
+    await subRef.collection("attachments").doc("old-attachment").set({ fileUrl: "https://drive.google.com/file/d/old/view", fileName: "lama.png", fileType: "image/png" });
+
+    const { submitSubmissionHandler } = await import("./submitSubmission");
+    await submitSubmissionHandler(
+      {
+        submissionId: "sub-4",
+        type: "kendaraan",
+        subType: "service_berkala",
+        requesterSignatureUrl: "https://x/new.png",
+        items: [{ itemName: "Fixed", brandType: "Fixed", km: 45000, quantity: 1, unit: "unit", description: "" }],
+      },
+      { auth: { uid: "uid-admin" } } as any
+    );
+
+    const attachments = await subRef.collection("attachments").get();
+    expect(attachments.docs).toHaveLength(0);
   });
 });

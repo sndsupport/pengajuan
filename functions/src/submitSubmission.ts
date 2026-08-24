@@ -66,6 +66,11 @@ async function createNewSubmission(
     batch.set(itemRef, item);
   });
 
+  input.attachments.forEach((attachment) => {
+    const attachmentRef = submissionRef.collection("attachments").doc();
+    batch.set(attachmentRef, { ...attachment, uploadedAt: FieldValue.serverTimestamp() });
+  });
+
   const historyRef = submissionRef.collection("statusHistory").doc();
   batch.set(historyRef, {
     status: "diajukan",
@@ -97,11 +102,17 @@ async function resubmitAfterRevisi(
   }
 
   const existingItems = await submissionRef.collection("items").get();
+  const existingAttachments = await submissionRef.collection("attachments").get();
   const batch = db.batch();
   existingItems.forEach((doc) => batch.delete(doc.ref));
+  existingAttachments.forEach((doc) => batch.delete(doc.ref));
   input.items.forEach((item) => {
     const itemRef = submissionRef.collection("items").doc();
     batch.set(itemRef, item);
+  });
+  input.attachments.forEach((attachment) => {
+    const attachmentRef = submissionRef.collection("attachments").doc();
+    batch.set(attachmentRef, { ...attachment, uploadedAt: FieldValue.serverTimestamp() });
   });
 
   batch.update(submissionRef, {
