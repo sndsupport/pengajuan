@@ -91,14 +91,37 @@ describe("reviewSubmissionSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts approve without rejectionNote", () => {
-    const result = reviewSubmissionSchema.safeParse({ submissionId: "abc", decision: "approve" });
+  it("accepts approve without rejectionNote, given an approverSignatureUrl", () => {
+    const result = reviewSubmissionSchema.safeParse({
+      submissionId: "abc",
+      decision: "approve",
+      approverSignatureUrl: "data:image/png;base64,aGVsbG8=",
+    });
     expect(result.success).toBe(true);
   });
 
   it("accepts approve with rejectionNote null (httpsCallable serializes an absent field as null on the wire)", () => {
-    const result = reviewSubmissionSchema.safeParse({ submissionId: "abc", decision: "approve", rejectionNote: null });
+    const result = reviewSubmissionSchema.safeParse({
+      submissionId: "abc",
+      decision: "approve",
+      rejectionNote: null,
+      approverSignatureUrl: "data:image/png;base64,aGVsbG8=",
+    });
     expect(result.success).toBe(true);
+  });
+
+  it("rejects approve without approverSignatureUrl", () => {
+    const result = reviewSubmissionSchema.safeParse({ submissionId: "abc", decision: "approve" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects approve with approverSignatureUrl null", () => {
+    const result = reviewSubmissionSchema.safeParse({
+      submissionId: "abc",
+      decision: "approve",
+      approverSignatureUrl: null,
+    });
+    expect(result.success).toBe(false);
   });
 
   it("still rejects reject with rejectionNote null", () => {

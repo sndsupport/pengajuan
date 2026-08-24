@@ -42,10 +42,15 @@ export const reviewSubmissionSchema = z
     submissionId: z.string().min(1),
     decision: z.enum(["approve", "reject"]),
     rejectionNote: z.string().nullish(),
+    approverSignatureUrl: z.string().url().nullish(),
   })
   .refine((data) => data.decision !== "reject" || (data.rejectionNote && data.rejectionNote.trim().length > 0), {
     message: "rejectionNote wajib diisi saat reject",
     path: ["rejectionNote"],
+  })
+  .refine((data) => data.decision !== "approve" || !!data.approverSignatureUrl, {
+    message: "Tanda tangan approver wajib diisi saat approve",
+    path: ["approverSignatureUrl"],
   });
 
 export type ReviewSubmissionInput = z.infer<typeof reviewSubmissionSchema>;
