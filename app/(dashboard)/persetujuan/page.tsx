@@ -9,6 +9,9 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { StatusBadge } from "@/components/status-badge/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { SignaturePad } from "@/components/signature-pad/SignaturePad";
+import { FileUpload } from "@/components/file-upload/FileUpload";
+import { Label } from "@/components/ui/label";
 
 const functions = getFunctions(firebaseApp);
 if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true") {
@@ -28,6 +31,8 @@ export default function PersetujuanPage() {
   const router = useRouter();
   const [rows, setRows] = useState<QueueRow[]>([]);
   const [noteBySubmission, setNoteBySubmission] = useState<Record<string, string>>({});
+  const [signatureModeBySubmission, setSignatureModeBySubmission] = useState<Record<string, "gambar" | "upload">>({});
+  const [signatureUrlBySubmission, setSignatureUrlBySubmission] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [actionErrorBySubmission, setActionErrorBySubmission] = useState<Record<string, string>>({});
@@ -67,7 +72,12 @@ export default function PersetujuanPage() {
     setActionErrorBySubmission((prev) => ({ ...prev, [submissionId]: "" }));
     try {
       const reviewSubmission = httpsCallable(functions, "reviewSubmission");
-      await reviewSubmission({ submissionId, decision, rejectionNote: noteBySubmission[submissionId] });
+      await reviewSubmission({
+        submissionId,
+        decision,
+        rejectionNote: noteBySubmission[submissionId],
+        approverSignatureUrl: decision === "approve" ? signatureUrlBySubmission[submissionId] : undefined,
+      });
     } catch (err) {
       setActionErrorBySubmission((prev) => ({
         ...prev,
@@ -95,11 +105,56 @@ export default function PersetujuanPage() {
               value={noteBySubmission[row.id] ?? ""}
               onChange={(e) => setNoteBySubmission((prev) => ({ ...prev, [row.id]: e.target.value }))}
             />
+            <div className="space-y-2">
+              <Label>Tanda Tangan Approver</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={(signatureModeBySubmission[row.id] ?? "gambar") === "gambar" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSignatureModeBySubmission((prev) => ({ ...prev, [row.id]: "gambar" }));
+                    setSignatureUrlBySubmission((prev) => ({ ...prev, [row.id]: "" }));
+                  }}
+                >
+                  Gambar
+                </Button>
+                <Button
+                  type="button"
+                  variant={signatureModeBySubmission[row.id] === "upload" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSignatureModeBySubmission((prev) => ({ ...prev, [row.id]: "upload" }));
+                    setSignatureUrlBySubmission((prev) => ({ ...prev, [row.id]: "" }));
+                  }}
+                >
+                  Upload File
+                </Button>
+              </div>
+              {(signatureModeBySubmission[row.id] ?? "gambar") === "gambar" ? (
+                <SignaturePad
+                  onChange={(dataUrl) =>
+                    setSignatureUrlBySubmission((prev) => ({ ...prev, [row.id]: dataUrl ?? "" }))
+                  }
+                />
+              ) : (
+                <FileUpload
+                  purpose="signature"
+                  onUploaded={(file) =>
+                    setSignatureUrlBySubmission((prev) => ({ ...prev, [row.id]: file.fileUrl }))
+                  }
+                />
+              )}
+            </div>
             {actionErrorBySubmission[row.id] && (
               <p className="text-sm text-red-600">{actionErrorBySubmission[row.id]}</p>
             )}
             <div className="flex gap-2">
-              <Button size="sm" disabled={busyId === row.id} onClick={() => handleDecision(row.id, "approve")}>
+              <Button
+                size="sm"
+                disabled={busyId === row.id || !signatureUrlBySubmission[row.id]}
+                onClick={() => handleDecision(row.id, "approve")}
+              >
                 Setujui
               </Button>
               <Button
