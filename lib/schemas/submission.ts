@@ -65,3 +65,9 @@ export const uploadFileSchema = z.object({
 });
 
 export type UploadFileInput = z.infer<typeof uploadFileSchema>;
+
+export const submissionActionSchema = z.object({
+  submissionId: z.string().min(1),
+});
+
+export type SubmissionActionInput = z.infer<typeof submissionActionSchema>;
