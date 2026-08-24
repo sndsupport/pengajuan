@@ -40,14 +40,14 @@ Aturan penting:
 | Hosting | Firebase App Hosting (native Next.js SSR support) — cek dokumentasi Firebase terkini kalau ada perubahan fitur | Alternatif fallback: static export + Cloud Run kalau App Hosting tidak cocok |
 | Auth | Firebase Authentication | Role & cabang disimpan sebagai field di dokumen `users/{uid}`, bukan cuma custom claims, biar gampang di-query untuk dashboard |
 | Database | Cloud Firestore | Realtime listener (`onSnapshot`) langsung dipakai untuk dashboard monitoring — tidak perlu infra websocket tambahan |
-| File Storage | Firebase Storage | Dokumen pendukung, tanda tangan digital (PNG), PDF hasil generate |
+| File Storage | Google Drive (API) | Dokumen pendukung & tanda tangan digital (PNG) diupload ke Google Drive via Cloud Function `uploadFile` (pakai akun `sndsupport.tsi@gmail.com`), bukan Firebase Storage — lihat `docs/superpowers/specs/2026-08-22-attachments-signature-upload-gdrive-design.md`. Penyimpanan PDF hasil `generateSubmissionPdf` belum diputuskan, menunggu fitur itu didesain. |
 | Backend Logic | Cloud Functions (2nd gen, Node.js/TypeScript) | Semua business logic sensitif (nomor otomatis, transisi status, generate PDF) |
 | Generate PDF | `puppeteer-core` + `@sparticuz/chromium` di Cloud Function | Render template HTML (meniru formulir GA) ke PDF. **Set memory ≥1GiB dan timeout ≥60s** pada function ini — default terlalu kecil untuk headless Chromium |
-| Tanda Tangan Digital | `signature_pad` (client, canvas) | Hasil di-upload sebagai PNG ke Storage saat submit (pengaju) & saat approve (approver) |
+| Tanda Tangan Digital | `signature_pad` (client, canvas) | Hasil di-upload sebagai PNG ke Google Drive (via `uploadFile`) saat submit (pengaju); upload tanda tangan approver saat approve belum dibangun |
 | Validasi | Zod | Schema sama dipakai di form client & di Cloud Function (single source of truth, taruh di `/lib/schemas`) |
 | Form State | React Hook Form | |
 | Data Fetching | Firestore SDK (`onSnapshot`/`getDocs`) + TanStack Query untuk data non-realtime | |
-| Local Dev | Firebase Emulator Suite (Auth, Firestore, Functions, Storage) | Jangan develop langsung ke project Firebase produksi |
+| Local Dev | Firebase Emulator Suite (Auth, Firestore, Functions) | Tidak ada emulator untuk Google Drive — panggilan `uploadFile` saat dev lokal selalu ke Drive API asli. Jangan develop langsung ke project Firebase produksi |
 
 ### Integrasi Akun ERP
 
@@ -129,7 +129,7 @@ counters/{branchYearMonthKey}     // contoh doc id: "WHO-2026-08"
 | --- | --- | --- |
 | `submitSubmission` | Callable | Generate `submissionNumber` (transaction di `counters`), set status `diajukan`, tulis entry `statusHistory` |
 | `reviewSubmission` | Callable (role `spv`/`management`) | Kalau approve → set `disetujui`, panggil `generateSubmissionPdf`; kalau reject → set `perlu_revisi` + `rejectionNote` wajib diisi |
-| `generateSubmissionPdf` | Dipanggil internal setelah approve | Render HTML template (layout formulir GA) via Puppeteer, upload PDF ke Storage, update `pdfUrl` + status `siap_dikirim` |
+| `generateSubmissionPdf` | Dipanggil internal setelah approve | Render HTML template (layout formulir GA) via Puppeteer, upload PDF (tujuan penyimpanan — Storage atau Drive — belum diputuskan), update `pdfUrl` + status `siap_dikirim` |
 | `confirmSentToGa` | Callable (pemilik submission) | Dipanggil setelah pengaju klik copy template WA & konfirmasi sudah kirim → set `on_proses_ga` |
 | `markAsDone` | Callable (pemilik submission, wajib `requesterId == auth.uid`) | Set status `selesai`, `completedAt` |
 
@@ -163,16 +163,16 @@ counters/{branchYearMonthKey}     // contoh doc id: "WHO-2026-08"
     counters.ts
 firestore.rules
 firestore.indexes.json
-storage.rules
 firebase.json
 ```
 
 ## Setup Awal
 
-1. `firebase init` — pilih Firestore, Functions, Storage, App Hosting (atau Hosting), Emulators.
+1. `firebase init` — pilih Firestore, Functions, App Hosting (atau Hosting), Emulators.
 2. Jalankan development di Firebase Emulator Suite (`firebase emulators:start`), jangan langsung ke project produksi.
 3. Simpan config Firebase client di `.env.local` (`NEXT_PUBLIC_FIREBASE_*`), service account untuk Admin SDK **jangan** di-commit ke repo.
 4. Definisikan Firestore composite indexes di `firestore.indexes.json` untuk query dashboard (filter status + jenis + cabang + sort tanggal).
+5. Setup Google Drive (sekali saja, manual) — lihat `docs/superpowers/specs/2026-08-22-attachments-signature-upload-gdrive-design.md`: enable Google Drive API, buat folder di akun `sndsupport.tsi@gmail.com`, share folder itu ke service account Cloud Functions, simpan folder ID sebagai env var `DRIVE_FOLDER_ID`.
 
 ## Konvensi Kode
 
@@ -200,7 +200,8 @@ Detail lengkap komponen & layout halaman ada di dokumen "Spesifikasi Aplikasi Pe
 
 ## Checklist MVP
 
-- [ ] Setup project Firebase (Auth, Firestore, Storage, Functions, App Hosting) + Emulator Suite
+- [ ] Setup project Firebase (Auth, Firestore, Functions, App Hosting) + Emulator Suite
+- [ ] Setup Google Drive API + folder + service account permission (lihat Setup Awal poin 5)
 - [ ] `firestore.rules` + `firestore.indexes.json` sesuai model data di atas
 - [ ] Integrasi akun (pilih opsi ERP bridge atau sync) & role assignment
 - [ ] Form Buat Pengajuan (Kendaraan/Perlengkapan) + signature pad pengaju
