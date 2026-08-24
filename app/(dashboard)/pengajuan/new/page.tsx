@@ -42,14 +42,16 @@ export default function NewPengajuanPage() {
     reset,
     formState: { errors, isSubmitting },
   } = useForm<CreateSubmissionInput>({
-    resolver: zodResolver(createSubmissionSchema),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(createSubmissionSchema) as any,
     defaultValues: {
       submissionId: resubmitId,
       type: "kendaraan",
       subType: "service_berkala",
       requesterSignatureUrl: "",
       items: [{ itemName: "", brandType: "", km: null, quantity: 1, unit: "", description: "" }],
-    },
+      attachments: [],
+    } satisfies CreateSubmissionInput,
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });

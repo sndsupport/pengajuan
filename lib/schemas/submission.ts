@@ -16,6 +16,12 @@ export const itemSchema = z.object({
   description: z.string(),
 });
 
+export const attachmentSchema = z.object({
+  fileUrl: z.string().url(),
+  fileName: z.string().min(1),
+  fileType: z.string().min(1),
+});
+
 export const createSubmissionSchema = z
   .object({
     submissionId: z.string().nullish(),
@@ -23,6 +29,7 @@ export const createSubmissionSchema = z
     subType: z.string(),
     requesterSignatureUrl: z.string().url(),
     items: z.array(itemSchema).min(1, "Minimal 1 item"),
+    attachments: z.array(attachmentSchema).default([]),
   })
   .refine((data) => (subTypeByType[data.type] as readonly string[]).includes(data.subType), {
     message: "subType tidak valid untuk type ini",
@@ -43,3 +50,12 @@ export const reviewSubmissionSchema = z
   });
 
 export type ReviewSubmissionInput = z.infer<typeof reviewSubmissionSchema>;
+
+export const uploadFileSchema = z.object({
+  purpose: z.enum(["attachment", "signature"]),
+  fileName: z.string().min(1),
+  fileType: z.string().min(1),
+  fileData: z.string().min(1),
+});
+
+export type UploadFileInput = z.infer<typeof uploadFileSchema>;

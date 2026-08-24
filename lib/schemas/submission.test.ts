@@ -1,6 +1,6 @@
 // lib/schemas/submission.test.ts
 import { describe, it, expect } from "vitest";
-import { createSubmissionSchema, reviewSubmissionSchema } from "./submission";
+import { createSubmissionSchema, reviewSubmissionSchema, uploadFileSchema } from "./submission";
 
 describe("createSubmissionSchema", () => {
   const validPayload = {
@@ -40,6 +40,34 @@ describe("createSubmissionSchema", () => {
     const result = createSubmissionSchema.safeParse({ ...validPayload, submissionId: null });
     expect(result.success).toBe(true);
   });
+
+  it("accepts a payload with attachments and preserves them", () => {
+    const payload = {
+      ...validPayload,
+      attachments: [{ fileUrl: "https://drive.google.com/file/d/abc/view", fileName: "nota.png", fileType: "image/png" }],
+    };
+    const result = createSubmissionSchema.safeParse(payload);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.attachments).toEqual(payload.attachments);
+    }
+  });
+
+  it("defaults attachments to an empty array when omitted", () => {
+    const result = createSubmissionSchema.safeParse(validPayload);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.attachments).toEqual([]);
+    }
+  });
+
+  it("rejects an attachment with an invalid fileUrl", () => {
+    const payload = {
+      ...validPayload,
+      attachments: [{ fileUrl: "not-a-url", fileName: "nota.png", fileType: "image/png" }],
+    };
+    expect(createSubmissionSchema.safeParse(payload).success).toBe(false);
+  });
 });
 
 describe("reviewSubmissionSchema", () => {
@@ -65,6 +93,38 @@ describe("reviewSubmissionSchema", () => {
 
   it("still rejects reject with rejectionNote null", () => {
     const result = reviewSubmissionSchema.safeParse({ submissionId: "abc", decision: "reject", rejectionNote: null });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("uploadFileSchema", () => {
+  it("accepts a valid attachment upload payload", () => {
+    const result = uploadFileSchema.safeParse({
+      purpose: "attachment",
+      fileName: "nota.png",
+      fileType: "image/png",
+      fileData: "data:image/png;base64,aGVsbG8=",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects an unknown purpose", () => {
+    const result = uploadFileSchema.safeParse({
+      purpose: "avatar",
+      fileName: "nota.png",
+      fileType: "image/png",
+      fileData: "data:image/png;base64,aGVsbG8=",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects an empty fileData", () => {
+    const result = uploadFileSchema.safeParse({
+      purpose: "signature",
+      fileName: "ttd.png",
+      fileType: "image/png",
+      fileData: "",
+    });
     expect(result.success).toBe(false);
   });
 });
