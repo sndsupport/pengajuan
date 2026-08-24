@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
 import { doc, getDoc, collection, getDocs } from "firebase/firestore";
@@ -13,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SignaturePad } from "@/components/signature-pad/SignaturePad";
+import { FileUpload } from "@/components/file-upload/FileUpload";
 
 const functions = getFunctions(firebaseApp);
 if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true") {
@@ -32,6 +34,7 @@ export default function NewPengajuanPage() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isLoadingResubmit, setIsLoadingResubmit] = useState(!!resubmitId);
   const [resubmitError, setResubmitError] = useState<string | null>(null);
+  const [signatureMode, setSignatureMode] = useState<"gambar" | "upload">("gambar");
 
   const {
     register,
@@ -41,9 +44,8 @@ export default function NewPengajuanPage() {
     setValue,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<CreateSubmissionInput>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(createSubmissionSchema) as any,
+  } = useForm<z.input<typeof createSubmissionSchema>, unknown, CreateSubmissionInput>({
+    resolver: zodResolver(createSubmissionSchema),
     defaultValues: {
       submissionId: resubmitId,
       type: "kendaraan",
@@ -51,10 +53,15 @@ export default function NewPengajuanPage() {
       requesterSignatureUrl: "",
       items: [{ itemName: "", brandType: "", km: null, quantity: 1, unit: "", description: "" }],
       attachments: [],
-    } satisfies CreateSubmissionInput,
+    },
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
+  const {
+    fields: attachmentFields,
+    append: appendAttachment,
+    remove: removeAttachment,
+  } = useFieldArray({ control, name: "attachments" });
   const selectedType = watch("type");
   const typeField = register("type");
 
@@ -68,6 +75,11 @@ export default function NewPengajuanPage() {
     typeField.onChange(event);
     const nextType = event.target.value as CreateSubmissionInput["type"];
     setValue("subType", subTypeByType[nextType][0]);
+  }
+
+  function handleSignatureModeChange(mode: "gambar" | "upload") {
+    setSignatureMode(mode);
+    setValue("requesterSignatureUrl", "");
   }
 
   useEffect(() => {
@@ -96,6 +108,15 @@ export default function NewPengajuanPage() {
             description: data.description ?? "",
           };
         });
+        const attachmentsSnap = await getDocs(collection(db, "submissions", id, "attachments"));
+        const attachments = attachmentsSnap.docs.map((attachmentDoc) => {
+          const data = attachmentDoc.data();
+          return {
+            fileUrl: data.fileUrl ?? "",
+            fileName: data.fileName ?? "",
+            fileType: data.fileType ?? "",
+          };
+        });
 
         if (cancelled) return;
 
@@ -108,6 +129,7 @@ export default function NewPengajuanPage() {
             items.length > 0
               ? items
               : [{ itemName: "", brandType: "", km: null, quantity: 1, unit: "", description: "" }],
+          attachments,
         });
       } catch (err) {
         if (cancelled) return;
@@ -249,9 +271,47 @@ export default function NewPengajuanPage() {
           )}
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-3">
+          <Label>Lampiran (opsional)</Label>
+          {attachmentFields.map((field, index) => (
+            <div key={field.id} className="flex items-center justify-between rounded border p-2 text-sm">
+              <span>{field.fileName}</span>
+              <Button type="button" variant="ghost" size="sm" onClick={() => removeAttachment(index)}>
+                Hapus
+              </Button>
+            </div>
+          ))}
+          <FileUpload purpose="attachment" onUploaded={(file) => appendAttachment(file)} />
+        </div>
+
+        <div className="space-y-2">
           <Label>Tanda Tangan</Label>
-          <SignaturePad onChange={(dataUrl) => setValue("requesterSignatureUrl", dataUrl ?? "")} />
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant={signatureMode === "gambar" ? "default" : "outline"}
+              size="sm"
+              onClick={() => handleSignatureModeChange("gambar")}
+            >
+              Gambar
+            </Button>
+            <Button
+              type="button"
+              variant={signatureMode === "upload" ? "default" : "outline"}
+              size="sm"
+              onClick={() => handleSignatureModeChange("upload")}
+            >
+              Upload File
+            </Button>
+          </div>
+          {signatureMode === "gambar" ? (
+            <SignaturePad onChange={(dataUrl) => setValue("requesterSignatureUrl", dataUrl ?? "")} />
+          ) : (
+            <FileUpload
+              purpose="signature"
+              onUploaded={(file) => setValue("requesterSignatureUrl", file.fileUrl)}
+            />
+          )}
           {errors.requesterSignatureUrl && <p className="text-sm text-red-600">Tanda tangan wajib diisi.</p>}
         </div>
 
