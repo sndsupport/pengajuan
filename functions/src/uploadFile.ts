@@ -24,8 +24,8 @@ export async function uploadFileHandler(rawData: unknown, context: CallerContext
 
   const callerSnap = await db.collection("users").doc(context.auth.uid).get();
   const caller = callerSnap.data();
-  if (!caller || !["admin_cabang", "snd"].includes(caller.role)) {
-    throw new HttpsError("permission-denied", "Hanya admin cabang atau SND yang bisa upload file.");
+  if (!caller || !["admin_cabang", "snd", "spv", "management"].includes(caller.role)) {
+    throw new HttpsError("permission-denied", "Hanya admin cabang, SND, SPV, atau Management yang bisa upload file.");
   }
 
   const parsed = uploadFileSchema.safeParse(rawData);

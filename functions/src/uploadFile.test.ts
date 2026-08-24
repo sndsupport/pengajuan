@@ -51,10 +51,18 @@ describe("uploadFileHandler", () => {
     await expect(uploadFileHandler(VALID_PAYLOAD, { auth: undefined })).rejects.toThrow(HttpsError);
   });
 
-  it("rejects when caller role is not admin_cabang/snd", async () => {
-    await seedUser("uid-spv", "spv");
+  it("rejects when caller role is not admin_cabang/snd/spv/management", async () => {
+    await seedUser("uid-superadmin", "superadmin");
     const { uploadFileHandler } = await import("./uploadFile");
-    await expect(uploadFileHandler(VALID_PAYLOAD, { auth: { uid: "uid-spv" } } as any)).rejects.toThrow(HttpsError);
+    await expect(uploadFileHandler(VALID_PAYLOAD, { auth: { uid: "uid-superadmin" } } as any)).rejects.toThrow(HttpsError);
+  });
+
+  it("allows spv and management to upload (needed for approver signature capture)", async () => {
+    await seedUser("uid-spv", "spv");
+    uploadToDriveMock.mockResolvedValue({ fileId: "file-3", webViewLink: "https://drive.google.com/file/d/file-3/view" });
+    const { uploadFileHandler } = await import("./uploadFile");
+    const result = await uploadFileHandler(VALID_PAYLOAD, { auth: { uid: "uid-spv" } } as any);
+    expect(result.fileId).toBe("file-3");
   });
 
   it("rejects an unsupported file type for the given purpose", async () => {
