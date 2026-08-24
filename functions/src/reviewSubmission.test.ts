@@ -47,7 +47,10 @@ describe("reviewSubmissionHandler", () => {
     await seedSubmission("sub-1", "diajukan");
     const { reviewSubmissionHandler } = await import("./reviewSubmission");
     await expect(
-      reviewSubmissionHandler({ submissionId: "sub-1", decision: "approve" }, { auth: { uid: "uid-admin" } } as any)
+      reviewSubmissionHandler(
+        { submissionId: "sub-1", decision: "approve", approverSignatureUrl: "data:image/png;base64,aGVsbG8=" },
+        { auth: { uid: "uid-admin" } } as any
+      )
     ).rejects.toThrow(HttpsError);
   });
 
@@ -56,21 +59,37 @@ describe("reviewSubmissionHandler", () => {
     await seedSubmission("sub-2", "disetujui");
     const { reviewSubmissionHandler } = await import("./reviewSubmission");
     await expect(
-      reviewSubmissionHandler({ submissionId: "sub-2", decision: "approve" }, { auth: { uid: "uid-spv" } } as any)
+      reviewSubmissionHandler(
+        { submissionId: "sub-2", decision: "approve", approverSignatureUrl: "data:image/png;base64,aGVsbG8=" },
+        { auth: { uid: "uid-spv" } } as any
+      )
     ).rejects.toThrow(/diajukan/);
   });
 
-  it("approves and sets approverId/approverRole/status", async () => {
+  it("approves and sets approverId/approverRole/approverSignatureUrl/status", async () => {
     await seedUser("uid-spv", "spv");
     await seedSubmission("sub-3", "diajukan");
     const { reviewSubmissionHandler } = await import("./reviewSubmission");
-    await reviewSubmissionHandler({ submissionId: "sub-3", decision: "approve" }, { auth: { uid: "uid-spv" } } as any);
+    await reviewSubmissionHandler(
+      { submissionId: "sub-3", decision: "approve", approverSignatureUrl: "data:image/png;base64,aGVsbG8=" },
+      { auth: { uid: "uid-spv" } } as any
+    );
 
     const admin = testEnv.unauthenticatedContext().firestore();
     const updated = await admin.collection("submissions").doc("sub-3").get();
     expect(updated.data()!.status).toBe("disetujui");
     expect(updated.data()!.approverId).toBe("uid-spv");
     expect(updated.data()!.approverRole).toBe("spv");
+    expect(updated.data()!.approverSignatureUrl).toBe("data:image/png;base64,aGVsbG8=");
+  });
+
+  it("rejects approve without approverSignatureUrl", async () => {
+    await seedUser("uid-spv", "spv");
+    await seedSubmission("sub-3b", "diajukan");
+    const { reviewSubmissionHandler } = await import("./reviewSubmission");
+    await expect(
+      reviewSubmissionHandler({ submissionId: "sub-3b", decision: "approve" }, { auth: { uid: "uid-spv" } } as any)
+    ).rejects.toThrow(HttpsError);
   });
 
   it("rejects without rejectionNote", async () => {
