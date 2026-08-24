@@ -14,6 +14,11 @@ export const reviewSubmission = onCall((request) =>
 // Attachments/signatures arrive as base64 (a 10MB file is ~13MB of base64) and
 // are held in memory as a decoded Buffer while being streamed to Drive, so this
 // needs more headroom than the default 256MiB/60s callable limits.
-export const uploadFile = onCall({ memory: "512MiB", timeoutSeconds: 120 }, (request) =>
-  uploadFileHandler(request.data, { auth: request.auth ? { uid: request.auth.uid } : undefined })
+//
+// Runs as a dedicated service account (rather than the default compute SA)
+// because it's the identity shared with the Google Drive folder that holds
+// attachments/signatures — see docs/superpowers/specs/2026-08-22-attachments-signature-upload-gdrive-design.md.
+export const uploadFile = onCall(
+  { memory: "512MiB", timeoutSeconds: 120, serviceAccount: "drive-uploader-dev@sndsupportapps.iam.gserviceaccount.com" },
+  (request) => uploadFileHandler(request.data, { auth: request.auth ? { uid: request.auth.uid } : undefined })
 );
