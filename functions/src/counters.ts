@@ -20,5 +20,5 @@ export async function getNextSubmissionNumber(
   });
 
   const counterPadded = String(nextNumber).padStart(3, "0");
-  return `${counterPadded}/${branch}/${ROMAN_MONTHS[month - 1]}/${year}`;
+  return `L.${counterPadded}/TSI-OPR/${branch}/${ROMAN_MONTHS[month - 1]}/${year}`;
 }

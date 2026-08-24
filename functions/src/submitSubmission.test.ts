@@ -82,7 +82,7 @@ describe("submitSubmissionHandler (create)", () => {
       { auth: { uid: "uid-admin" } } as any
     );
 
-    expect(result.submissionNumber).toMatch(/^001\/WHO\/[IVX]+\/\d{4}$/);
+    expect(result.submissionNumber).toMatch(/^L\.001\/TSI-OPR\/WHO\/[IVX]+\/\d{4}$/);
     expect(result.status).toBe("diajukan");
   });
 

@@ -22,20 +22,20 @@ describe("getNextSubmissionNumber", () => {
   it("starts at 001 for a new branch-month key", async () => {
     const db = testEnv.unauthenticatedContext().firestore();
     const number = await getNextSubmissionNumber(db as any, "WHO", 2026, 8);
-    expect(number).toBe("001/WHO/VIII/2026");
+    expect(number).toBe("L.001/TSI-OPR/WHO/VIII/2026");
   });
 
   it("increments on the second call for the same branch-month", async () => {
     const db = testEnv.unauthenticatedContext().firestore();
     await getNextSubmissionNumber(db as any, "WHO", 2026, 8);
     const second = await getNextSubmissionNumber(db as any, "WHO", 2026, 8);
-    expect(second).toBe("002/WHO/VIII/2026");
+    expect(second).toBe("L.002/TSI-OPR/WHO/VIII/2026");
   });
 
   it("keeps separate counters per branch", async () => {
     const db = testEnv.unauthenticatedContext().firestore();
     await getNextSubmissionNumber(db as any, "WHO", 2026, 8);
     const whp = await getNextSubmissionNumber(db as any, "WHP", 2026, 8);
-    expect(whp).toBe("001/WHP/VIII/2026");
+    expect(whp).toBe("L.001/TSI-OPR/WHP/VIII/2026");
   });
 });
