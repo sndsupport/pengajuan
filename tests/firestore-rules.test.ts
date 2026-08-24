@@ -22,6 +22,11 @@ describe("firestore.rules", () => {
         itemName: "Toyota Avanza",
         quantity: 1,
       });
+      await db.collection("submissions").doc("sub-1").collection("attachments").doc("attachment-1").set({
+        fileUrl: "https://drive.google.com/file/d/abc/view",
+        fileName: "nota.png",
+        fileType: "image/png",
+      });
     });
   });
 
@@ -136,6 +141,36 @@ describe("firestore.rules", () => {
       const db = testEnv.authenticatedContext("uid-admin").firestore();
       await assertFails(
         db.collection("submissions").doc("sub-1").collection("items").doc("item-1").update({ quantity: 2 })
+      );
+    });
+  });
+
+  describe("attachments subcollection rule", () => {
+    it("allows the owner to read an attachment under their own submission", async () => {
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("sub-1").collection("attachments").doc("attachment-1").get()
+      );
+    });
+
+    it("allows a reviewer to read an attachment under any submission", async () => {
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("sub-1").collection("attachments").doc("attachment-1").get()
+      );
+    });
+
+    it("denies a non-owner, non-reviewer from reading an attachment", async () => {
+      const db = testEnv.authenticatedContext("uid-snd").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-1").collection("attachments").doc("attachment-1").get()
+      );
+    });
+
+    it("denies direct client write to an attachment", async () => {
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-1").collection("attachments").doc("attachment-1").update({ fileName: "hacked.png" })
       );
     });
   });

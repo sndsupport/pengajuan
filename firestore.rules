@@ -35,6 +35,12 @@ service cloud.firestore {
           (get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid || isReviewer());
         allow write: if false;
       }
+
+      match /attachments/{attachmentId} {
+        allow read: if isSignedIn() &&
+          (get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid || isReviewer());
+        allow write: if false;
+      }
     }
 
     match /counters/{counterId} {
