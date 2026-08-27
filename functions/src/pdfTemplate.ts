@@ -138,12 +138,12 @@ export function buildSubmissionPdfHtml(data: SubmissionPdfData): string {
   <div class="signatures">
     <div class="signature-block">
       <div>Pemohon</div>
-      <img src="${data.requesterSignatureUrl}" alt="Tanda tangan pemohon" />
+      <img src="${escapeHtml(data.requesterSignatureUrl)}" alt="Tanda tangan pemohon" />
       <div class="signature-line">${escapeHtml(data.requesterName)}</div>
     </div>
     <div class="signature-block">
       <div>Mengetahui</div>
-      <img src="${data.approverSignatureUrl}" alt="Tanda tangan approver" />
+      <img src="${escapeHtml(data.approverSignatureUrl)}" alt="Tanda tangan approver" />
       <div class="signature-line">${escapeHtml(data.approverName)}<br/>${APPROVER_ROLE_LABEL[data.approverRole]}</div>
     </div>
   </div>

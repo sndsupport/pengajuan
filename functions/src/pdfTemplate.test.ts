@@ -46,10 +46,10 @@ describe("buildSubmissionPdfHtml", () => {
     expect(html).not.toContain("<th>KM</th>");
   });
 
-  it("includes both signature image URLs", () => {
+  it("includes both signature image URLs (HTML-escaped, since they're interpolated into an <img> attribute)", () => {
     const html = buildSubmissionPdfHtml(baseData);
-    expect(html).toContain(baseData.requesterSignatureUrl);
-    expect(html).toContain(baseData.approverSignatureUrl);
+    expect(html).toContain("https://drive.google.com/uc?export=view&amp;id=req-sig");
+    expect(html).toContain("https://drive.google.com/uc?export=view&amp;id=approver-sig");
   });
 
   it("renders a human-readable label for approverRole spv", () => {
