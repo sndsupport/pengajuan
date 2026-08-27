@@ -74,3 +74,9 @@ export const confirmSentToGaSchema = z.object({
 });
 
 export type ConfirmSentToGaInput = z.infer<typeof confirmSentToGaSchema>;
+
+export const markAsDoneSchema = z.object({
+  submissionId: z.string().min(1),
+});
+
+export type MarkAsDoneInput = z.infer<typeof markAsDoneSchema>;
