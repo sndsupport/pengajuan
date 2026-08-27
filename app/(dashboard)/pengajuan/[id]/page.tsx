@@ -33,6 +33,7 @@ export default function PengajuanDetailPage({ params }: { params: { id: string }
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubSub = onSnapshot(
@@ -70,6 +71,7 @@ export default function PengajuanDetailPage({ params }: { params: { id: string }
 
   async function handleCopy() {
     if (!submission || !appUser) return;
+    setCopyError(null);
     const text = buildWaTemplate(
       {
         submissionNumber: submission.submissionNumber,
@@ -80,9 +82,13 @@ export default function PengajuanDetailPage({ params }: { params: { id: string }
       },
       appUser.name
     );
-    await navigator.clipboard.writeText(text);
-    setCopyFeedback(true);
-    setTimeout(() => setCopyFeedback(false), 2000);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyFeedback(true);
+      setTimeout(() => setCopyFeedback(false), 2000);
+    } catch {
+      setCopyError("Gagal menyalin. Coba salin manual.");
+    }
   }
 
   async function handleConfirm() {
@@ -156,6 +162,7 @@ export default function PengajuanDetailPage({ params }: { params: { id: string }
             </Button>
             {copyFeedback && <span className="text-sm text-green-600">Disalin!</span>}
           </div>
+          {copyError && <p className="text-sm text-red-600">{copyError}</p>}
           {confirmError && <p className="text-sm text-red-600">{confirmError}</p>}
           <Button type="button" size="sm" disabled={confirming} onClick={handleConfirm}>
             {confirming ? "Memproses..." : "Konfirmasi Sudah Dikirim ke GA"}
