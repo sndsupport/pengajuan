@@ -68,3 +68,9 @@ export const uploadFileSchema = z.object({
 });
 
 export type UploadFileInput = z.infer<typeof uploadFileSchema>;
+
+export const confirmSentToGaSchema = z.object({
+  submissionId: z.string().min(1),
+});
+
+export type ConfirmSentToGaInput = z.infer<typeof confirmSentToGaSchema>;

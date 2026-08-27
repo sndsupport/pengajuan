@@ -1,6 +1,6 @@
 // lib/schemas/submission.test.ts
 import { describe, it, expect } from "vitest";
-import { createSubmissionSchema, reviewSubmissionSchema, uploadFileSchema } from "./submission";
+import { createSubmissionSchema, reviewSubmissionSchema, uploadFileSchema, confirmSentToGaSchema } from "./submission";
 
 describe("createSubmissionSchema", () => {
   const validPayload = {
@@ -164,5 +164,19 @@ describe("uploadFileSchema", () => {
       fileData: "",
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("confirmSentToGaSchema", () => {
+  it("accepts a valid submissionId", () => {
+    expect(confirmSentToGaSchema.safeParse({ submissionId: "abc" }).success).toBe(true);
+  });
+
+  it("rejects an empty submissionId", () => {
+    expect(confirmSentToGaSchema.safeParse({ submissionId: "" }).success).toBe(false);
+  });
+
+  it("rejects a missing submissionId", () => {
+    expect(confirmSentToGaSchema.safeParse({}).success).toBe(false);
   });
 });
