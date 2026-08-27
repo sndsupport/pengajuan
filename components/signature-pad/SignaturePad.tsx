@@ -7,20 +7,25 @@ import { Button } from "@/components/ui/button";
 export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const padRef = useRef<SignaturePadLib | null>(null);
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
     const pad = new SignaturePadLib(canvasRef.current, { backgroundColor: "rgb(255,255,255)" });
     pad.addEventListener("endStroke", () => {
-      onChange(pad.isEmpty() ? null : pad.toDataURL("image/png"));
+      onChangeRef.current(pad.isEmpty() ? null : pad.toDataURL("image/png"));
     });
     padRef.current = pad;
     return () => pad.off();
-  }, [onChange]);
+  }, []);
 
   function handleClear() {
     padRef.current?.clear();
-    onChange(null);
+    onChangeRef.current(null);
   }
 
   return (
