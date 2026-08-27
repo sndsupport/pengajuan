@@ -7,6 +7,7 @@ import { createUserHandler } from "./createUser";
 import { updateUserHandler } from "./updateUser";
 import { resetUserPasswordHandler } from "./resetUserPassword";
 import { confirmSentToGaHandler } from "./confirmSentToGa";
+import { markAsDoneHandler } from "./markAsDone";
 import { shouldGeneratePdf, generateSubmissionPdfHandler } from "./generateSubmissionPdf";
 
 export const submitSubmission = onCall((request) =>
@@ -38,6 +39,10 @@ export const resetUserPassword = onCall((request) =>
 
 export const confirmSentToGa = onCall((request) =>
   confirmSentToGaHandler(request.data, { auth: request.auth ? { uid: request.auth.uid } : undefined })
+);
+
+export const markAsDone = onCall((request) =>
+  markAsDoneHandler(request.data, { auth: request.auth ? { uid: request.auth.uid } : undefined })
 );
 
 // Puppeteer needs meaningfully more memory/time than the default 256MiB/60s —
