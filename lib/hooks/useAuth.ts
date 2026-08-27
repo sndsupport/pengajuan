@@ -8,7 +8,8 @@ import { auth, db } from "@/lib/firebase/client";
 export type AppUser = {
   uid: string;
   name: string;
-  email: string;
+  username: string;
+  email: string | null;
   role: "admin_cabang" | "snd" | "spv" | "management" | "superadmin";
   branch: string | null;
   department: string;
