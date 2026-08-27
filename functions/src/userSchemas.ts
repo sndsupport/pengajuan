@@ -23,7 +23,12 @@ const baseUserFields = {
 export const createUserSchema = z
   .object({
     ...baseUserFields,
-    username: z.string().min(1, "Username wajib diisi"),
+    username: z
+      .string()
+      .min(1, "Username wajib diisi")
+      .refine((v) => !/\s/.test(v) && !v.includes("@"), {
+        message: "Username tidak boleh mengandung spasi atau '@'.",
+      }),
     password: z.string().min(6, "Password minimal 6 karakter"),
   })
   .refine((data) => isValidBranchForRole(data.role, data.branch), {

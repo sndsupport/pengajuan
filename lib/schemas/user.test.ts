@@ -57,6 +57,14 @@ describe("createUserSchema", () => {
   it("rejects an invalid email when provided", () => {
     expect(createUserSchema.safeParse({ ...valid, email: "not-an-email" }).success).toBe(false);
   });
+
+  it("rejects a username containing a space", () => {
+    expect(createUserSchema.safeParse({ ...valid, username: "admin cabang" }).success).toBe(false);
+  });
+
+  it("rejects a username containing @", () => {
+    expect(createUserSchema.safeParse({ ...valid, username: "admin@cabang" }).success).toBe(false);
+  });
 });
 
 describe("updateUserSchema", () => {
