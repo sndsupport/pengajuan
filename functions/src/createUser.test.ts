@@ -73,10 +73,11 @@ describe("createUserHandler", () => {
   it("rejects a duplicate username", async () => {
     await seedCaller("uid-super", "superadmin");
     const { createUserHandler } = await import("./createUser");
-    await createUserHandler(validInput, { auth: { uid: "uid-super" } } as any);
+    const dupInput = { ...validInput, username: "dup.test.user" };
+    await createUserHandler(dupInput, { auth: { uid: "uid-super" } } as any);
 
     await expect(
-      createUserHandler({ ...validInput, name: "Lain" }, { auth: { uid: "uid-super" } } as any)
+      createUserHandler({ ...dupInput, name: "Lain" }, { auth: { uid: "uid-super" } } as any)
     ).rejects.toThrow(/sudah dipakai/);
   });
 
