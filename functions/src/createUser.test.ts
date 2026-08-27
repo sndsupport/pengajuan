@@ -10,6 +10,12 @@ process.env.GCLOUD_PROJECT = "demo-pengajuan-createuser-test";
 const fft = functionsTest({ projectId: "demo-pengajuan-createuser-test" }, undefined);
 let testEnv: RulesTestEnvironment;
 
+async function clearAuthEmulator() {
+  await fetch("http://127.0.0.1:9099/emulator/v1/projects/demo-pengajuan-createuser-test/accounts", {
+    method: "DELETE",
+  });
+}
+
 async function seedCaller(uid: string, role: string) {
   const admin = testEnv.unauthenticatedContext().firestore();
   await admin.collection("users").doc(uid).set({
@@ -34,6 +40,7 @@ describe("createUserHandler", () => {
       },
     });
     await testEnv.clearFirestore();
+    await clearAuthEmulator();
   });
 
   afterAll(() => fft.cleanup());
