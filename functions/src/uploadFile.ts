@@ -17,22 +17,33 @@ const ALLOWED_MIME_TYPES: Record<UploadFileInput["purpose"], readonly string[]> 
   signature: ["image/png"],
 };
 
+// Attachments are only ever added by the requester (admin_cabang/snd) when
+// creating/resubmitting a submission. Signatures are needed by both the
+// requester (submit) AND the approver (approve) — see reviewSubmission.ts.
+const ALLOWED_ROLES_BY_PURPOSE: Record<UploadFileInput["purpose"], readonly string[]> = {
+  attachment: ["admin_cabang", "snd"],
+  signature: ["admin_cabang", "snd", "spv", "management"],
+};
+
 export async function uploadFileHandler(rawData: unknown, context: CallerContext) {
   if (!context.auth) {
     throw new HttpsError("unauthenticated", "Login diperlukan.");
   }
 
-  const callerSnap = await db.collection("users").doc(context.auth.uid).get();
-  const caller = callerSnap.data();
-  if (!caller || !["admin_cabang", "snd"].includes(caller.role)) {
-    throw new HttpsError("permission-denied", "Hanya admin cabang atau SND yang bisa upload file.");
-  }
-
+  // Schema validation runs before the role check here (rather than after, as
+  // in sibling handlers) because which roles are allowed depends on
+  // input.purpose, which isn't known until the payload is parsed.
   const parsed = uploadFileSchema.safeParse(rawData);
   if (!parsed.success) {
     throw new HttpsError("invalid-argument", parsed.error.issues[0]?.message ?? "Data tidak valid.");
   }
-  const input = parsed.data;
+  const input: UploadFileInput = parsed.data;
+
+  const callerSnap = await db.collection("users").doc(context.auth.uid).get();
+  const caller = callerSnap.data();
+  if (!caller || !ALLOWED_ROLES_BY_PURPOSE[input.purpose].includes(caller.role)) {
+    throw new HttpsError("permission-denied", "Anda tidak punya izin untuk upload file jenis ini.");
+  }
 
   if (!ALLOWED_MIME_TYPES[input.purpose].includes(input.fileType)) {
     throw new HttpsError("invalid-argument", "Tipe file tidak didukung.");

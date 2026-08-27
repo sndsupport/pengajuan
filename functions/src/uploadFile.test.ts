@@ -118,6 +118,17 @@ describe("uploadFileHandler", () => {
     });
   });
 
+  it("allows spv to upload a signature (but not an attachment)", async () => {
+    await seedUser("uid-spv", "spv");
+    uploadToDriveMock.mockResolvedValue({ fileId: "file-3", webViewLink: "https://drive.google.com/file/d/file-3/view" });
+    const { uploadFileHandler } = await import("./uploadFile");
+    const result = await uploadFileHandler(
+      { purpose: "signature", fileName: "ttd-spv.png", fileType: "image/png", fileData: "data:image/png;base64,aGVsbG8=" },
+      { auth: { uid: "uid-spv" } } as any
+    );
+    expect(result.fileUrl).toBe("https://drive.google.com/uc?export=view&id=file-3");
+  });
+
   it("rejects when the fileData data-URL's mime prefix disagrees with the declared fileType", async () => {
     await seedUser("uid-admin", "admin_cabang");
     const { uploadFileHandler } = await import("./uploadFile");
