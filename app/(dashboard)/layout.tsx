@@ -33,6 +33,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 Antrian Persetujuan
               </Link>
             )}
+            {appUser.role === "superadmin" && (
+              <Link href="/admin" className="hover:underline">
+                Manajemen User
+              </Link>
+            )}
           </div>
         </nav>
       </header>
