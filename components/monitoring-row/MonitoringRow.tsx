@@ -8,6 +8,8 @@ import { computeStageDurations, formatDuration, StatusHistoryEntry } from "@/lib
 import { StatusBadge } from "@/components/status-badge/StatusBadge";
 import { TableCell, TableRow } from "@/components/ui/table";
 
+const requesterNameCache = new Map<string, string>();
+
 export type MonitoringSubmission = {
   id: string;
   submissionNumber: string;
@@ -34,11 +36,17 @@ export function MonitoringRow({ submission }: { submission: MonitoringSubmission
   }, [submission.id]);
 
   useEffect(() => {
+    const cached = requesterNameCache.get(submission.requesterId);
+    if (cached) {
+      setRequesterName(cached);
+      return;
+    }
     let cancelled = false;
     getDoc(doc(db, "users", submission.requesterId)).then((snap) => {
-      if (!cancelled && snap.exists()) {
-        setRequesterName((snap.data().name as string) ?? submission.requesterId);
-      }
+      if (cancelled || !snap.exists()) return;
+      const name = (snap.data().name as string) ?? submission.requesterId;
+      requesterNameCache.set(submission.requesterId, name);
+      setRequesterName(name);
     });
     return () => {
       cancelled = true;
