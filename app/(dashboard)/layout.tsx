@@ -28,6 +28,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Link href="/pengajuan" className="hover:underline">
               Pengajuan Saya
             </Link>
+            <Link href="/monitoring" className="hover:underline">
+              Monitoring
+            </Link>
             {(appUser.role === "spv" || appUser.role === "management") && (
               <Link href="/persetujuan" className="hover:underline">
                 Antrian Persetujuan
