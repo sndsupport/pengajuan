@@ -43,6 +43,7 @@ export async function reviewSubmissionHandler(rawData: unknown, context: CallerC
       status: "disetujui",
       approverId: context.auth.uid,
       approverRole: caller.role,
+      approverSignatureUrl: input.approverSignatureUrl,
       approvedAt: FieldValue.serverTimestamp(),
       reviewedAt: FieldValue.serverTimestamp(),
     });

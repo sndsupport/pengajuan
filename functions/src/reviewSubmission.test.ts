@@ -56,21 +56,37 @@ describe("reviewSubmissionHandler", () => {
     await seedSubmission("sub-2", "disetujui");
     const { reviewSubmissionHandler } = await import("./reviewSubmission");
     await expect(
-      reviewSubmissionHandler({ submissionId: "sub-2", decision: "approve" }, { auth: { uid: "uid-spv" } } as any)
+      reviewSubmissionHandler(
+        { submissionId: "sub-2", decision: "approve", approverSignatureUrl: "https://drive.google.com/uc?export=view&id=sig" },
+        { auth: { uid: "uid-spv" } } as any
+      )
     ).rejects.toThrow(/diajukan/);
   });
 
-  it("approves and sets approverId/approverRole/status", async () => {
+  it("approves and sets approverId/approverRole/status/approverSignatureUrl", async () => {
     await seedUser("uid-spv", "spv");
     await seedSubmission("sub-3", "diajukan");
     const { reviewSubmissionHandler } = await import("./reviewSubmission");
-    await reviewSubmissionHandler({ submissionId: "sub-3", decision: "approve" }, { auth: { uid: "uid-spv" } } as any);
+    await reviewSubmissionHandler(
+      { submissionId: "sub-3", decision: "approve", approverSignatureUrl: "https://drive.google.com/uc?export=view&id=sig" },
+      { auth: { uid: "uid-spv" } } as any
+    );
 
     const admin = testEnv.unauthenticatedContext().firestore();
     const updated = await admin.collection("submissions").doc("sub-3").get();
     expect(updated.data()!.status).toBe("disetujui");
     expect(updated.data()!.approverId).toBe("uid-spv");
     expect(updated.data()!.approverRole).toBe("spv");
+    expect(updated.data()!.approverSignatureUrl).toBe("https://drive.google.com/uc?export=view&id=sig");
+  });
+
+  it("rejects approve without approverSignatureUrl", async () => {
+    await seedUser("uid-spv", "spv");
+    await seedSubmission("sub-6", "diajukan");
+    const { reviewSubmissionHandler } = await import("./reviewSubmission");
+    await expect(
+      reviewSubmissionHandler({ submissionId: "sub-6", decision: "approve" }, { auth: { uid: "uid-spv" } } as any)
+    ).rejects.toThrow(HttpsError);
   });
 
   it("rejects without rejectionNote", async () => {
