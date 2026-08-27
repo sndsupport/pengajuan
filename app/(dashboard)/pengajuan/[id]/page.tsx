@@ -34,6 +34,8 @@ export default function PengajuanDetailPage({ params }: { params: { id: string }
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
+  const [markingDone, setMarkingDone] = useState(false);
+  const [markDoneError, setMarkDoneError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubSub = onSnapshot(
@@ -105,6 +107,20 @@ export default function PengajuanDetailPage({ params }: { params: { id: string }
     }
   }
 
+  async function handleMarkDone() {
+    if (!submission) return;
+    setMarkDoneError(null);
+    setMarkingDone(true);
+    try {
+      const markAsDone = httpsCallable(functions, "markAsDone");
+      await markAsDone({ submissionId: submission.id });
+    } catch (err) {
+      setMarkDoneError(err instanceof Error ? err.message : "Gagal menandai selesai.");
+    } finally {
+      setMarkingDone(false);
+    }
+  }
+
   if (error) {
     return (
       <main className="p-6 text-sm text-red-600">
@@ -166,6 +182,16 @@ export default function PengajuanDetailPage({ params }: { params: { id: string }
           {confirmError && <p className="text-sm text-red-600">{confirmError}</p>}
           <Button type="button" size="sm" disabled={confirming} onClick={handleConfirm}>
             {confirming ? "Memproses..." : "Konfirmasi Sudah Dikirim ke GA"}
+          </Button>
+        </div>
+      )}
+
+      {submission.status === "on_proses_ga" && (
+        <div className="space-y-3 rounded border p-3">
+          <p className="font-medium">Barang/layanan sudah diterima?</p>
+          {markDoneError && <p className="text-sm text-red-600">{markDoneError}</p>}
+          <Button type="button" size="sm" disabled={markingDone} onClick={handleMarkDone}>
+            {markingDone ? "Memproses..." : "Tandai Selesai"}
           </Button>
         </div>
       )}
