@@ -91,19 +91,47 @@ describe("reviewSubmissionSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts approve without rejectionNote", () => {
-    const result = reviewSubmissionSchema.safeParse({ submissionId: "abc", decision: "approve" });
+  it("accepts approve with approverSignatureUrl", () => {
+    const result = reviewSubmissionSchema.safeParse({
+      submissionId: "abc",
+      decision: "approve",
+      approverSignatureUrl: "https://drive.google.com/uc?export=view&id=abc",
+    });
     expect(result.success).toBe(true);
   });
 
-  it("accepts approve with rejectionNote null (httpsCallable serializes an absent field as null on the wire)", () => {
-    const result = reviewSubmissionSchema.safeParse({ submissionId: "abc", decision: "approve", rejectionNote: null });
+  it("accepts approve with rejectionNote null and a valid approverSignatureUrl (httpsCallable serializes an absent field as null on the wire)", () => {
+    const result = reviewSubmissionSchema.safeParse({
+      submissionId: "abc",
+      decision: "approve",
+      rejectionNote: null,
+      approverSignatureUrl: "https://drive.google.com/uc?export=view&id=abc",
+    });
     expect(result.success).toBe(true);
   });
 
   it("still rejects reject with rejectionNote null", () => {
     const result = reviewSubmissionSchema.safeParse({ submissionId: "abc", decision: "reject", rejectionNote: null });
     expect(result.success).toBe(false);
+  });
+
+  it("rejects approve without approverSignatureUrl", () => {
+    const result = reviewSubmissionSchema.safeParse({ submissionId: "abc", decision: "approve" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects approve with approverSignatureUrl null", () => {
+    const result = reviewSubmissionSchema.safeParse({ submissionId: "abc", decision: "approve", approverSignatureUrl: null });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts a data URL as approverSignatureUrl (drawn signature, not uploaded)", () => {
+    const result = reviewSubmissionSchema.safeParse({
+      submissionId: "abc",
+      decision: "approve",
+      approverSignatureUrl: "data:image/png;base64,aGVsbG8=",
+    });
+    expect(result.success).toBe(true);
   });
 });
 
