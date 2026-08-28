@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { buildWaTemplate } from "@/lib/wa-template";
 import { confirmSentToGa } from "@/lib/submissions/confirmSentToGa";
 import { markAsDone } from "@/lib/submissions/markAsDone";
+import { generateAndAttachSubmissionPdf } from "@/lib/pdf/generateAndAttachSubmissionPdf";
 import { StatusBadge } from "@/components/status-badge/StatusBadge";
 import { SubmissionTimeline, StatusHistoryEntry } from "@/components/submission-timeline/SubmissionTimeline";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,8 @@ export default function PengajuanDetailPage({ params }: { params: { id: string }
   const [copyError, setCopyError] = useState<string | null>(null);
   const [markingDone, setMarkingDone] = useState(false);
   const [markDoneError, setMarkDoneError] = useState<string | null>(null);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubSub = onSnapshot(
@@ -109,6 +112,19 @@ export default function PengajuanDetailPage({ params }: { params: { id: string }
     }
   }
 
+  async function handleGeneratePdf() {
+    if (!submission || !appUser) return;
+    setPdfError(null);
+    setGeneratingPdf(true);
+    try {
+      await generateAndAttachSubmissionPdf(submission.id, appUser);
+    } catch (err) {
+      setPdfError(err instanceof Error ? err.message : "Gagal generate PDF.");
+    } finally {
+      setGeneratingPdf(false);
+    }
+  }
+
   if (error) {
     return (
       <main className="p-6 text-sm text-red-600">
@@ -137,6 +153,16 @@ export default function PengajuanDetailPage({ params }: { params: { id: string }
               Revisi & Ajukan Ulang
             </Button>
           </Link>
+        </div>
+      )}
+
+      {submission.status === "disetujui" && !submission.pdfUrl && appUser && (
+        <div className="space-y-3 rounded border p-3">
+          <p className="font-medium">PDF pengajuan belum berhasil dibuat.</p>
+          {pdfError && <p className="text-sm text-red-600">{pdfError}</p>}
+          <Button type="button" size="sm" disabled={generatingPdf} onClick={handleGeneratePdf}>
+            {generatingPdf ? "Memproses..." : "Coba Generate PDF"}
+          </Button>
         </div>
       )}
 
