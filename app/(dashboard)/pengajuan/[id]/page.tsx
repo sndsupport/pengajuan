@@ -3,25 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { doc, onSnapshot, collection, orderBy, query, DocumentData } from "firebase/firestore";
-import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
-import { db, firebaseApp } from "@/lib/firebase/client";
+import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { buildWaTemplate } from "@/lib/wa-template";
+import { confirmSentToGa } from "@/lib/submissions/confirmSentToGa";
+import { markAsDone } from "@/lib/submissions/markAsDone";
 import { StatusBadge } from "@/components/status-badge/StatusBadge";
 import { SubmissionTimeline, StatusHistoryEntry } from "@/components/submission-timeline/SubmissionTimeline";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-
-const functions = getFunctions(firebaseApp);
-if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true") {
-  try {
-    connectFunctionsEmulator(functions, "127.0.0.1", 5001);
-  } catch (error) {
-    // connectFunctionsEmulator throws if called again on an already-configured
-    // instance (e.g. Next.js Fast Refresh re-evaluating this module).
-    console.warn("[functions] Emulator connection skipped (already configured):", error);
-  }
-}
 
 type SubmissionDoc = DocumentData & { id: string };
 
@@ -94,12 +84,11 @@ export default function PengajuanDetailPage({ params }: { params: { id: string }
   }
 
   async function handleConfirm() {
-    if (!submission) return;
+    if (!submission || !appUser) return;
     setConfirmError(null);
     setConfirming(true);
     try {
-      const confirmSentToGa = httpsCallable(functions, "confirmSentToGa");
-      await confirmSentToGa({ submissionId: submission.id });
+      await confirmSentToGa({ submissionId: submission.id }, appUser);
     } catch (err) {
       setConfirmError(err instanceof Error ? err.message : "Gagal konfirmasi.");
     } finally {
@@ -108,12 +97,11 @@ export default function PengajuanDetailPage({ params }: { params: { id: string }
   }
 
   async function handleMarkDone() {
-    if (!submission) return;
+    if (!submission || !appUser) return;
     setMarkDoneError(null);
     setMarkingDone(true);
     try {
-      const markAsDone = httpsCallable(functions, "markAsDone");
-      await markAsDone({ submissionId: submission.id });
+      await markAsDone({ submissionId: submission.id }, appUser);
     } catch (err) {
       setMarkDoneError(err instanceof Error ? err.message : "Gagal menandai selesai.");
     } finally {
