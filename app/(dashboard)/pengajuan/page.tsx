@@ -52,7 +52,7 @@ export default function PengajuanListPage() {
       <ul className="divide-y rounded border">
         {rows.map((row) => (
           <li key={row.id} className="flex items-center justify-between p-3">
-            <Link href={`/pengajuan/${row.id}`} className="hover:underline">
+            <Link href={`/pengajuan/detail?id=${row.id}`} className="hover:underline">
               {row.submissionNumber} — {row.type}
             </Link>
             <StatusBadge status={row.status} />

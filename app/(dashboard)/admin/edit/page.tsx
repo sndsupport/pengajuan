@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -28,8 +28,9 @@ function defaultBranchForRole(role: UpdateUserInput["role"]): UpdateUserInput["b
   return null;
 }
 
-export default function EditUserPage({ params }: { params: { uid: string } }) {
-  const { uid } = params;
+function EditUserContent() {
+  const searchParams = useSearchParams();
+  const uid = searchParams.get("uid");
   const { appUser, loading } = useAuth();
   const router = useRouter();
 
@@ -47,7 +48,7 @@ export default function EditUserPage({ params }: { params: { uid: string } }) {
     formState: { errors, isSubmitting },
   } = useForm<z.input<typeof updateUserSchema>, unknown, UpdateUserInput>({
     resolver: zodResolver(updateUserSchema),
-    defaultValues: { uid, name: "", role: "admin_cabang", branch: "WHO", department: "", position: "", email: "" },
+    defaultValues: { uid: uid ?? "", name: "", role: "admin_cabang", branch: "WHO", department: "", position: "", email: "" },
   });
 
   useEffect(() => {
@@ -57,13 +58,18 @@ export default function EditUserPage({ params }: { params: { uid: string } }) {
   }, [loading, appUser, router]);
 
   useEffect(() => {
+    if (!uid) {
+      setIsLoadingUser(false);
+      setLoadError("User tidak ditemukan.");
+      return;
+    }
     let cancelled = false;
 
     async function loadUser() {
       setIsLoadingUser(true);
       setLoadError(null);
       try {
-        const snap = await getDoc(doc(db, "users", uid));
+        const snap = await getDoc(doc(db, "users", uid as string));
         if (!snap.exists()) {
           throw new Error("User tidak ditemukan.");
         }
@@ -71,7 +77,7 @@ export default function EditUserPage({ params }: { params: { uid: string } }) {
         if (cancelled) return;
         setUsername(data.username ?? null);
         reset({
-          uid,
+          uid: uid as string,
           name: data.name ?? "",
           role: data.role,
           branch: data.branch ?? null,
@@ -187,5 +193,13 @@ export default function EditUserPage({ params }: { params: { uid: string } }) {
         </p>
       </div>
     </main>
+  );
+}
+
+export default function EditUserPage() {
+  return (
+    <Suspense fallback={<main className="mx-auto max-w-md p-6 text-sm text-muted-foreground">Memuat...</main>}>
+      <EditUserContent />
+    </Suspense>
   );
 }

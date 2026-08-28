@@ -58,7 +58,7 @@ export function MonitoringRow({ submission }: { submission: MonitoringSubmission
   return (
     <TableRow>
       <TableCell>
-        <Link href={`/pengajuan/${submission.id}`} className="underline">
+        <Link href={`/pengajuan/detail?id=${submission.id}`} className="underline">
           {submission.submissionNumber}
         </Link>
       </TableCell>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { doc, onSnapshot, collection, orderBy, query, DocumentData } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -16,7 +17,9 @@ import { Textarea } from "@/components/ui/textarea";
 
 type SubmissionDoc = DocumentData & { id: string };
 
-export default function PengajuanDetailPage({ params }: { params: { id: string } }) {
+function PengajuanDetailContent() {
+  const searchParams = useSearchParams();
+  const id = searchParams.get("id");
   const { appUser } = useAuth();
   const [submission, setSubmission] = useState<SubmissionDoc | null>(null);
   const [history, setHistory] = useState<StatusHistoryEntry[]>([]);
@@ -31,8 +34,9 @@ export default function PengajuanDetailPage({ params }: { params: { id: string }
   const [pdfError, setPdfError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!id) return;
     const unsubSub = onSnapshot(
-      doc(db, "submissions", params.id),
+      doc(db, "submissions", id),
       (snap) => {
         setSubmission(snap.exists() ? { id: snap.id, ...snap.data() } : null);
       },
@@ -40,7 +44,7 @@ export default function PengajuanDetailPage({ params }: { params: { id: string }
         setError(err.code);
       }
     );
-    const historyQuery = query(collection(db, "submissions", params.id, "statusHistory"), orderBy("timestamp", "asc"));
+    const historyQuery = query(collection(db, "submissions", id, "statusHistory"), orderBy("timestamp", "asc"));
     const unsubHistory = onSnapshot(
       historyQuery,
       (snap) => {
@@ -62,7 +66,7 @@ export default function PengajuanDetailPage({ params }: { params: { id: string }
       unsubSub();
       unsubHistory();
     };
-  }, [params.id]);
+  }, [id]);
 
   async function handleCopy() {
     if (!submission || !appUser) return;
@@ -125,7 +129,7 @@ export default function PengajuanDetailPage({ params }: { params: { id: string }
     }
   }
 
-  if (error) {
+  if (!id || error) {
     return (
       <main className="p-6 text-sm text-red-600">
         Pengajuan tidak ditemukan atau Anda tidak punya akses.
@@ -215,5 +219,13 @@ export default function PengajuanDetailPage({ params }: { params: { id: string }
         <SubmissionTimeline entries={history} />
       </div>
     </main>
+  );
+}
+
+export default function PengajuanDetailPage() {
+  return (
+    <Suspense fallback={<main className="p-6 text-sm text-muted-foreground">Memuat...</main>}>
+      <PengajuanDetailContent />
+    </Suspense>
   );
 }

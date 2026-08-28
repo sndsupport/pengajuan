@@ -85,7 +85,7 @@ export default function AdminUsersPage() {
               <TableCell>{row.department}</TableCell>
               <TableCell>{row.position}</TableCell>
               <TableCell>
-                <Link href={`/admin/${row.id}`} className="text-sm underline">
+                <Link href={`/admin/edit?uid=${row.id}`} className="text-sm underline">
                   Edit
                 </Link>
               </TableCell>

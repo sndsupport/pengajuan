@@ -151,7 +151,7 @@ export default function NewPengajuanPage() {
     setServerError(null);
     try {
       const result = await submitSubmission(data, appUser);
-      router.push(`/pengajuan/${result.submissionId}`);
+      router.push(`/pengajuan/detail?id=${result.submissionId}`);
     } catch (err) {
       setServerError(err instanceof Error ? err.message : "Gagal mengirim pengajuan.");
     }
