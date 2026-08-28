@@ -65,11 +65,9 @@ export async function reviewSubmission(rawInput: unknown, caller: AppUser): Prom
   await batch.commit();
 
   if (input.decision === "approve") {
-    try {
-      await generateAndAttachSubmissionPdf(input.submissionId, caller);
-    } catch (error) {
+    void generateAndAttachSubmissionPdf(input.submissionId, caller).catch((error) => {
       console.error(`reviewSubmission: PDF generation failed for submission ${input.submissionId}`, error);
-    }
+    });
   }
 
   return { submissionId: input.submissionId, status: input.decision === "approve" ? "disetujui" : "perlu_revisi" };
