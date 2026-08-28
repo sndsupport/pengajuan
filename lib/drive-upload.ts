@@ -12,6 +12,7 @@ declare global {
             client_id: string;
             scope: string;
             callback: (response: { access_token?: string; error?: string; expires_in?: number }) => void;
+            error_callback?: (error: { type: string; message?: string }) => void;
           }) => { requestAccessToken: (overrideConfig?: { prompt?: string }) => void };
         };
       };
@@ -59,6 +60,9 @@ async function requestNewAccessToken(): Promise<string> {
         const expiresInMs = (response.expires_in ?? 3600) * 1000;
         cachedToken = { value: response.access_token, expiresAt: Date.now() + expiresInMs - 60_000 };
         resolve(response.access_token);
+      },
+      error_callback: (error) => {
+        reject(new Error(error.message ?? "Proses izin akses Google Drive dibatalkan atau gagal dibuka."));
       },
     });
     tokenClient.requestAccessToken();
