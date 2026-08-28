@@ -52,21 +52,9 @@ describe("firestore.rules", () => {
     await assertFails(db.collection("submissions").doc("sub-1").get());
   });
 
-  it("denies direct client update of submission status", async () => {
+  it("denies an unauthorized direct status change", async () => {
     const db = testEnv.authenticatedContext("uid-admin").firestore();
     await assertFails(db.collection("submissions").doc("sub-1").update({ status: "disetujui" }));
-  });
-
-  it("denies direct client write to statusHistory", async () => {
-    const db = testEnv.authenticatedContext("uid-admin").firestore();
-    await assertFails(
-      db.collection("submissions").doc("sub-1").collection("statusHistory").doc("h1").set({ status: "diajukan" })
-    );
-  });
-
-  it("denies direct client write to counters", async () => {
-    const db = testEnv.authenticatedContext("uid-admin").firestore();
-    await assertFails(db.collection("counters").doc("WHO-2026-08").set({ lastNumber: 1 }));
   });
 
   describe("submissions create rule", () => {
@@ -95,6 +83,178 @@ describe("firestore.rules", () => {
       const db = testEnv.authenticatedContext("uid-admin").firestore();
       await assertFails(
         db.collection("submissions").doc("sub-new").set({ requesterId: "uid-admin", status: "disetujui" })
+      );
+    });
+  });
+
+  describe("submissions update rule — status transitions", () => {
+    it("allows the owner to resubmit after perlu_revisi", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-revisi").set({
+          requesterId: "uid-admin",
+          status: "perlu_revisi",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("sub-revisi").update({ status: "diajukan", rejectionNote: null })
+      );
+    });
+
+    it("denies a non-owner from resubmitting", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-revisi2").set({
+          requesterId: "uid-admin",
+          status: "perlu_revisi",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-snd").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-revisi2").update({ status: "diajukan", rejectionNote: null })
+      );
+    });
+
+    it("allows spv to approve a diajukan submission with approverSignatureUrl", async () => {
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("sub-1").update({
+          status: "disetujui",
+          approverId: "uid-spv",
+          approverRole: "spv",
+          approverSignatureUrl: "https://drive.google.com/uc?export=view&id=sig",
+        })
+      );
+    });
+
+    it("denies approve without approverSignatureUrl", async () => {
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-1").update({
+          status: "disetujui",
+          approverId: "uid-spv",
+          approverRole: "spv",
+          approverSignatureUrl: "",
+        })
+      );
+    });
+
+    it("denies approve when approverRole doesn't match the caller's real role", async () => {
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-1").update({
+          status: "disetujui",
+          approverId: "uid-spv",
+          approverRole: "management",
+          approverSignatureUrl: "https://drive.google.com/uc?export=view&id=sig",
+        })
+      );
+    });
+
+    it("allows spv to reject a diajukan submission with rejectionNote", async () => {
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("sub-1").update({
+          status: "perlu_revisi",
+          rejectionNote: "KM tidak sesuai",
+        })
+      );
+    });
+
+    it("denies reject without rejectionNote", async () => {
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-1").update({
+          status: "perlu_revisi",
+          rejectionNote: "",
+        })
+      );
+    });
+
+    it("denies a non-reviewer from approving", async () => {
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-1").update({
+          status: "disetujui",
+          approverId: "uid-admin",
+          approverRole: "admin_cabang",
+          approverSignatureUrl: "https://drive.google.com/uc?export=view&id=sig",
+        })
+      );
+    });
+
+    it("allows the owner to confirm sent to GA when siap_dikirim", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-siap").set({
+          requesterId: "uid-admin",
+          status: "siap_dikirim",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(db.collection("submissions").doc("sub-siap").update({ status: "on_proses_ga" }));
+    });
+
+    it("denies confirming sent to GA by a non-owner", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-siap2").set({
+          requesterId: "uid-admin",
+          status: "siap_dikirim",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-snd").firestore();
+      await assertFails(db.collection("submissions").doc("sub-siap2").update({ status: "on_proses_ga" }));
+    });
+
+    it("allows the owner to mark as done when on_proses_ga", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-proses").set({
+          requesterId: "uid-admin",
+          status: "on_proses_ga",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(db.collection("submissions").doc("sub-proses").update({ status: "selesai" }));
+    });
+
+    it("denies marking as done from a status other than on_proses_ga", async () => {
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(db.collection("submissions").doc("sub-1").update({ status: "selesai" }));
+    });
+  });
+
+  describe("statusHistory create rule", () => {
+    it("allows creating a statusHistory entry with a matching actorId/actorRole", async () => {
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("sub-1").collection("statusHistory").doc("h-ok").set({
+          status: "diajukan",
+          note: null,
+          actorId: "uid-admin",
+          actorRole: "admin_cabang",
+        })
+      );
+    });
+
+    it("denies creating a statusHistory entry with a forged actorRole", async () => {
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-1").collection("statusHistory").doc("h-forged").set({
+          status: "diajukan",
+          note: null,
+          actorId: "uid-admin",
+          actorRole: "superadmin",
+        })
+      );
+    });
+
+    it("denies creating a statusHistory entry with a forged actorId", async () => {
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-1").collection("statusHistory").doc("h-forged2").set({
+          status: "diajukan",
+          note: null,
+          actorId: "uid-snd",
+          actorRole: "admin_cabang",
+        })
       );
     });
   });
@@ -137,10 +297,51 @@ describe("firestore.rules", () => {
       await assertFails(db.collection("submissions").doc("sub-1").collection("items").doc("item-1").get());
     });
 
-    it("denies direct client write to an item", async () => {
+    it("denies direct client update of an item", async () => {
       const db = testEnv.authenticatedContext("uid-admin").firestore();
       await assertFails(
         db.collection("submissions").doc("sub-1").collection("items").doc("item-1").update({ quantity: 2 })
+      );
+    });
+
+    it("allows the owner to create an item while status is diajukan", async () => {
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("sub-1").collection("items").doc("item-new").set({
+          itemName: "Kertas A4",
+          quantity: 5,
+        })
+      );
+    });
+
+    it("allows the owner to delete an item while status is diajukan", async () => {
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(db.collection("submissions").doc("sub-1").collection("items").doc("item-1").delete());
+    });
+
+    it("denies a non-owner from creating an item", async () => {
+      const db = testEnv.authenticatedContext("uid-snd").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-1").collection("items").doc("item-new2").set({
+          itemName: "Kertas A4",
+          quantity: 5,
+        })
+      );
+    });
+
+    it("denies creating an item once the submission is no longer editable", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-approved").set({
+          requesterId: "uid-admin",
+          status: "disetujui",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-approved").collection("items").doc("item-new3").set({
+          itemName: "Kertas A4",
+          quantity: 5,
+        })
       );
     });
   });
@@ -167,11 +368,44 @@ describe("firestore.rules", () => {
       );
     });
 
-    it("denies direct client write to an attachment", async () => {
+    it("denies direct client update of an attachment", async () => {
       const db = testEnv.authenticatedContext("uid-admin").firestore();
       await assertFails(
         db.collection("submissions").doc("sub-1").collection("attachments").doc("attachment-1").update({ fileName: "hacked.png" })
       );
+    });
+  });
+
+  describe("counters rule", () => {
+    it("allows an admin_cabang/snd user to create a new counter at 1", async () => {
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(db.collection("counters").doc("WHO-2026-09").set({ lastNumber: 1 }));
+    });
+
+    it("denies creating a new counter at a value other than 1", async () => {
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(db.collection("counters").doc("WHO-2026-10").set({ lastNumber: 2 }));
+    });
+
+    it("allows incrementing an existing counter by exactly 1", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("counters").doc("WHO-2026-08").set({ lastNumber: 1 });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(db.collection("counters").doc("WHO-2026-08").update({ lastNumber: 2 }));
+    });
+
+    it("denies incrementing a counter by more than 1", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("counters").doc("WHO-2026-08").set({ lastNumber: 1 });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(db.collection("counters").doc("WHO-2026-08").update({ lastNumber: 5 }));
+    });
+
+    it("denies a reviewer role from writing counters", async () => {
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(db.collection("counters").doc("WHO-2026-11").set({ lastNumber: 1 }));
     });
   });
 });

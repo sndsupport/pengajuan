@@ -10,6 +10,9 @@ service cloud.firestore {
     function isReviewer() {
       return isSignedIn() && userRole() in ['spv', 'management', 'superadmin'];
     }
+    function isRequesterRole() {
+      return isSignedIn() && userRole() in ['admin_cabang', 'snd'];
+    }
 
     match /users/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || userRole() in ['spv', 'management', 'superadmin']);
@@ -18,33 +21,79 @@ service cloud.firestore {
 
     match /submissions/{submissionId} {
       allow create: if isSignedIn()
-        && userRole() in ['admin_cabang', 'snd']
+        && isRequesterRole()
         && request.resource.data.requesterId == request.auth.uid
         && request.resource.data.status == 'diajukan';
       allow read: if isSignedIn() && (resource.data.requesterId == request.auth.uid || isReviewer());
-      allow update, delete: if false;
+
+      allow update: if isSignedIn() && (
+        // Resubmit setelah revisi: pemilik, status lama perlu_revisi -> diajukan
+        (resource.data.requesterId == request.auth.uid
+          && resource.data.status == 'perlu_revisi'
+          && request.resource.data.status == 'diajukan')
+        ||
+        // Review - approve: spv/management, status lama diajukan -> disetujui
+        (userRole() in ['spv', 'management']
+          && resource.data.status == 'diajukan'
+          && request.resource.data.status == 'disetujui'
+          && request.resource.data.approverId == request.auth.uid
+          && request.resource.data.approverRole == userRole()
+          && request.resource.data.approverSignatureUrl is string
+          && request.resource.data.approverSignatureUrl.size() > 0)
+        ||
+        // Review - reject: spv/management, status lama diajukan -> perlu_revisi
+        (userRole() in ['spv', 'management']
+          && resource.data.status == 'diajukan'
+          && request.resource.data.status == 'perlu_revisi'
+          && request.resource.data.rejectionNote is string
+          && request.resource.data.rejectionNote.size() > 0)
+        ||
+        // Konfirmasi sudah dikirim ke GA: pemilik, status lama siap_dikirim -> on_proses_ga
+        (resource.data.requesterId == request.auth.uid
+          && resource.data.status == 'siap_dikirim'
+          && request.resource.data.status == 'on_proses_ga')
+        ||
+        // Tandai selesai: pemilik, status lama on_proses_ga -> selesai
+        (resource.data.requesterId == request.auth.uid
+          && resource.data.status == 'on_proses_ga'
+          && request.resource.data.status == 'selesai')
+      );
+
+      allow delete: if false;
 
       match /items/{itemId} {
         allow read: if isSignedIn() &&
           (get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid || isReviewer());
-        allow write: if false;
+        allow create, delete: if isSignedIn()
+          && get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid
+          && get(/databases/$(database)/documents/submissions/$(submissionId)).data.status in ['diajukan', 'perlu_revisi'];
+        allow update: if false;
       }
 
       match /statusHistory/{historyId} {
         allow read: if isSignedIn() &&
           (get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid || isReviewer());
-        allow write: if false;
+        allow create: if isSignedIn()
+          && request.resource.data.actorId == request.auth.uid
+          && request.resource.data.actorRole == userRole();
+        allow update, delete: if false;
       }
 
       match /attachments/{attachmentId} {
         allow read: if isSignedIn() &&
           (get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid || isReviewer());
-        allow write: if false;
+        allow create, delete: if isSignedIn()
+          && get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid
+          && get(/databases/$(database)/documents/submissions/$(submissionId)).data.status in ['diajukan', 'perlu_revisi'];
+        allow update: if false;
       }
     }
 
     match /counters/{counterId} {
-      allow read, write: if false;
+      allow get: if isRequesterRole();
+      allow create: if isRequesterRole() && request.resource.data.lastNumber == 1;
+      allow update: if isRequesterRole() && request.resource.data.lastNumber == resource.data.lastNumber + 1;
+      allow delete: if false;
     }
   }
 }
