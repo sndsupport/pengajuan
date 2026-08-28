@@ -65,11 +65,18 @@ async function requestNewAccessToken(): Promise<string> {
   });
 }
 
+let pendingTokenPromise: Promise<string> | null = null;
+
 export async function getDriveAccessToken(): Promise<string> {
   if (cachedToken && cachedToken.expiresAt > Date.now()) {
     return cachedToken.value;
   }
-  return requestNewAccessToken();
+  if (!pendingTokenPromise) {
+    pendingTokenPromise = requestNewAccessToken().finally(() => {
+      pendingTokenPromise = null;
+    });
+  }
+  return pendingTokenPromise;
 }
 
 export function buildMultipartRequestBody(
