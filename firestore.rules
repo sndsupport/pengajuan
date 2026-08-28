@@ -26,7 +26,9 @@ service cloud.firestore {
         && request.resource.data.status == 'diajukan';
       allow read: if isSignedIn() && (resource.data.requesterId == request.auth.uid || isReviewer());
 
-      allow update: if isSignedIn() && (
+      allow update: if isSignedIn()
+        && request.resource.data.requesterId == resource.data.requesterId
+        && (
         // Resubmit setelah revisi: pemilik, status lama perlu_revisi -> diajukan
         (resource.data.requesterId == request.auth.uid
           && resource.data.status == 'perlu_revisi'
@@ -74,6 +76,7 @@ service cloud.firestore {
         allow read: if isSignedIn() &&
           (get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid || isReviewer());
         allow create: if isSignedIn()
+          && (get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid || isReviewer())
           && request.resource.data.actorId == request.auth.uid
           && request.resource.data.actorRole == userRole();
         allow update, delete: if false;

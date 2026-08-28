@@ -219,6 +219,36 @@ describe("firestore.rules", () => {
       const db = testEnv.authenticatedContext("uid-admin").firestore();
       await assertFails(db.collection("submissions").doc("sub-1").update({ status: "selesai" }));
     });
+
+    it("denies resubmit that also reassigns requesterId to someone else", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-revisi3").set({
+          requesterId: "uid-admin",
+          status: "perlu_revisi",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-revisi3").update({
+          status: "diajukan",
+          rejectionNote: null,
+          requesterId: "uid-snd",
+        })
+      );
+    });
+
+    it("denies approve that also reassigns requesterId to someone else", async () => {
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-1").update({
+          status: "disetujui",
+          approverId: "uid-spv",
+          approverRole: "spv",
+          approverSignatureUrl: "https://drive.google.com/uc?export=view&id=sig",
+          requesterId: "uid-snd",
+        })
+      );
+    });
   });
 
   describe("statusHistory create rule", () => {
@@ -254,6 +284,18 @@ describe("firestore.rules", () => {
           note: null,
           actorId: "uid-snd",
           actorRole: "admin_cabang",
+        })
+      );
+    });
+
+    it("denies a non-owner, non-reviewer from creating a statusHistory entry under someone else's submission", async () => {
+      const db = testEnv.authenticatedContext("uid-snd").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-1").collection("statusHistory").doc("h-outsider").set({
+          status: "diajukan",
+          note: null,
+          actorId: "uid-snd",
+          actorRole: "snd",
         })
       );
     });
