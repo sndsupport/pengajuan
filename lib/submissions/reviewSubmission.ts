@@ -6,7 +6,11 @@ import type { AppUser } from "@/lib/hooks/useAuth";
 export type ReviewSubmissionResult = { submissionId: string; status: "disetujui" | "perlu_revisi" };
 
 export async function reviewSubmission(rawInput: unknown, caller: AppUser): Promise<ReviewSubmissionResult> {
-  const input: ReviewSubmissionInput = reviewSubmissionSchema.parse(rawInput);
+  const parsed = reviewSubmissionSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "Data tidak valid.");
+  }
+  const input: ReviewSubmissionInput = parsed.data;
 
   const submissionRef = doc(db, "submissions", input.submissionId);
   const submissionSnap = await getDoc(submissionRef);

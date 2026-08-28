@@ -6,7 +6,11 @@ import type { AppUser } from "@/lib/hooks/useAuth";
 export type MarkAsDoneResult = { submissionId: string; status: "selesai" };
 
 export async function markAsDone(rawInput: unknown, caller: AppUser): Promise<MarkAsDoneResult> {
-  const input: MarkAsDoneInput = markAsDoneSchema.parse(rawInput);
+  const parsed = markAsDoneSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "Data tidak valid.");
+  }
+  const input: MarkAsDoneInput = parsed.data;
 
   const submissionRef = doc(db, "submissions", input.submissionId);
   const submissionSnap = await getDoc(submissionRef);

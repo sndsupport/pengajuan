@@ -16,7 +16,11 @@ import type { AppUser } from "@/lib/hooks/useAuth";
 export type SubmitSubmissionResult = { submissionId: string; submissionNumber: string; status: "diajukan" };
 
 export async function submitSubmission(rawInput: unknown, caller: AppUser): Promise<SubmitSubmissionResult> {
-  const input: CreateSubmissionInput = createSubmissionSchema.parse(rawInput);
+  const parsed = createSubmissionSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "Data tidak valid.");
+  }
+  const input: CreateSubmissionInput = parsed.data;
 
   if (input.submissionId) {
     return resubmitAfterRevisi(input, caller);

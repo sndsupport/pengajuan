@@ -6,7 +6,11 @@ import type { AppUser } from "@/lib/hooks/useAuth";
 export type ConfirmSentToGaResult = { submissionId: string; status: "on_proses_ga" };
 
 export async function confirmSentToGa(rawInput: unknown, caller: AppUser): Promise<ConfirmSentToGaResult> {
-  const input: ConfirmSentToGaInput = confirmSentToGaSchema.parse(rawInput);
+  const parsed = confirmSentToGaSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "Data tidak valid.");
+  }
+  const input: ConfirmSentToGaInput = parsed.data;
 
   const submissionRef = doc(db, "submissions", input.submissionId);
   const submissionSnap = await getDoc(submissionRef);
