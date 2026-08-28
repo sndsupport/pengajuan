@@ -39,7 +39,7 @@ Aturan penting:
 | Layer | Teknologi | Catatan |
 | --- | --- | --- |
 | Frontend | Next.js 14 (App Router) + TypeScript + Tailwind CSS + shadcn/ui | |
-| Hosting | Belum di-deploy. Karena plan Spark (bukan Blaze), Firebase App Hosting (butuh Blaze) tidak dipakai — target deploy adalah static export (`next.config.js` `output: 'export'`) + Firebase Hosting klasik | |
+| Hosting | Firebase Hosting klasik, static export (`next.config.js` `output: 'export'`) — live di https://sndsupportapps.web.app | Karena plan Spark (bukan Blaze), Firebase App Hosting (butuh Blaze) tidak dipakai. Route dengan ID dinamis (`/pengajuan/[id]`, `/admin/[uid]`) diubah jadi query-string (`/pengajuan/detail?id=`, `/admin/edit?uid=`) karena static export tidak bisa pre-render path dengan ID yang belum diketahui saat build |
 | Auth | Firebase Authentication | Login pakai **username**, bukan email asli — `lib/users/username.ts` mengubah username jadi email sintetis (`username@pengajuan-tsi.internal`) di baliknya. Role & cabang disimpan sebagai field di dokumen `users/{uid}`, bukan cuma custom claims, biar gampang di-query untuk dashboard |
 | Database | Cloud Firestore | Realtime listener (`onSnapshot`) langsung dipakai untuk dashboard monitoring — tidak perlu infra websocket tambahan |
 | File Storage | Google Drive (OAuth, Google Identity Services) | Dokumen pendukung, tanda tangan digital (PNG), PDF hasil generate — semua diupload langsung dari browser ke Drive lewat `lib/drive-upload.ts`, bukan ke Firebase Storage |
@@ -233,5 +233,7 @@ Detail lengkap komponen & layout halaman ada di dokumen "Spesifikasi Aplikasi Pe
 - [x] Tombol Tandai Selesai + `lib/submissions/markAsDone.ts`
 - [x] Dashboard Monitoring realtime (`onSnapshot`) dengan durasi per tahap & total durasi
 - [x] Halaman Manajemen User (superadmin)
-- [ ] Deploy: static export (`next.config.js` `output: 'export'`) + Firebase Hosting, project sesuai (`sndsupportapps`, bukan `pengajuan-kendaraan-perlengkapan` yang ada di `.firebaserc` saat ini)
-- [ ] QA manual end-to-end di browser sungguhan + emulator (belum pernah dilakukan — mesin dev saat ini tidak punya Java/emulator)
+- [x] Deploy: static export + Firebase Hosting ke project `sndsupportapps` — live di https://sndsupportapps.web.app. `firestore.rules`/`firestore.indexes.json` juga sudah dideploy
+- [ ] Setup Google Drive OAuth (`NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID`, `NEXT_PUBLIC_DRIVE_FOLDER_ID`) — belum diisi di `.env.local`, upload lampiran/tanda tangan/PDF akan gagal sampai ini disetel. Lihat Task 8 di `docs/superpowers/plans/2026-08-22-attachments-signature-upload-gdrive.md`
+- [ ] QA manual end-to-end di browser sungguhan (belum pernah dilakukan)
+- [ ] Test otomatis emulator-dependent (`tests/firestore-rules.test.ts`, `lib/counters.test.ts`) belum pernah dijalankan — mesin dev saat ini tidak punya Java
