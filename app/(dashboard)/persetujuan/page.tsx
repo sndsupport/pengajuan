@@ -145,7 +145,7 @@ export default function PersetujuanPage() {
               <div className="flex gap-2">
                 <Button
                   size="sm"
-                  disabled={busyId === row.id || !hasSignature}
+                  disabled={busyId === row.id || !hasSignature || !appUser}
                   onClick={() => handleDecision(row.id, "approve")}
                 >
                   Setujui
@@ -153,7 +153,7 @@ export default function PersetujuanPage() {
                 <Button
                   size="sm"
                   variant="destructive"
-                  disabled={busyId === row.id}
+                  disabled={busyId === row.id || !appUser}
                   onClick={() => handleDecision(row.id, "reject")}
                 >
                   Tolak

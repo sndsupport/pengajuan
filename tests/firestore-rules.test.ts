@@ -249,6 +249,54 @@ describe("firestore.rules", () => {
         })
       );
     });
+
+    it("denies approve that also modifies requesterSignatureUrl", async () => {
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-1").update({
+          status: "disetujui",
+          approverId: "uid-spv",
+          approverRole: "spv",
+          approverSignatureUrl: "https://drive.google.com/uc?export=view&id=sig",
+          requesterSignatureUrl: "https://drive.google.com/uc?export=view&id=tampered",
+        })
+      );
+    });
+
+    it("denies resubmit that also modifies submissionNumber", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-revisi4").set({
+          requesterId: "uid-admin",
+          status: "perlu_revisi",
+          submissionNumber: "001/WHO/VIII/2026",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-revisi4").update({
+          status: "diajukan",
+          rejectionNote: null,
+          submissionNumber: "999/WHO/VIII/2026",
+        })
+      );
+    });
+
+    it("denies confirming sent to GA that also modifies branch", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-siap3").set({
+          requesterId: "uid-admin",
+          status: "siap_dikirim",
+          branch: "WHO",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-siap3").update({
+          status: "on_proses_ga",
+          branch: "WHP",
+        })
+      );
+    });
   });
 
   describe("statusHistory create rule", () => {

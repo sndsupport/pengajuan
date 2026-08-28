@@ -12,6 +12,10 @@ export async function reviewSubmission(rawInput: unknown, caller: AppUser): Prom
   }
   const input: ReviewSubmissionInput = parsed.data;
 
+  if (!["spv", "management"].includes(caller.role)) {
+    throw new Error("Anda tidak memiliki akses untuk mereview pengajuan.");
+  }
+
   const submissionRef = doc(db, "submissions", input.submissionId);
   const submissionSnap = await getDoc(submissionRef);
   const submission = submissionSnap.data();

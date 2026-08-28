@@ -32,7 +32,9 @@ service cloud.firestore {
         // Resubmit setelah revisi: pemilik, status lama perlu_revisi -> diajukan
         (resource.data.requesterId == request.auth.uid
           && resource.data.status == 'perlu_revisi'
-          && request.resource.data.status == 'diajukan')
+          && request.resource.data.status == 'diajukan'
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['type', 'subType', 'requesterSignatureUrl', 'status', 'rejectionNote']))
         ||
         // Review - approve: spv/management, status lama diajukan -> disetujui
         (userRole() in ['spv', 'management']
@@ -41,24 +43,32 @@ service cloud.firestore {
           && request.resource.data.approverId == request.auth.uid
           && request.resource.data.approverRole == userRole()
           && request.resource.data.approverSignatureUrl is string
-          && request.resource.data.approverSignatureUrl.size() > 0)
+          && request.resource.data.approverSignatureUrl.size() > 0
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'approverId', 'approverRole', 'approverSignatureUrl', 'approvedAt', 'reviewedAt']))
         ||
         // Review - reject: spv/management, status lama diajukan -> perlu_revisi
         (userRole() in ['spv', 'management']
           && resource.data.status == 'diajukan'
           && request.resource.data.status == 'perlu_revisi'
           && request.resource.data.rejectionNote is string
-          && request.resource.data.rejectionNote.size() > 0)
+          && request.resource.data.rejectionNote.size() > 0
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'rejectionNote', 'reviewedAt']))
         ||
         // Konfirmasi sudah dikirim ke GA: pemilik, status lama siap_dikirim -> on_proses_ga
         (resource.data.requesterId == request.auth.uid
           && resource.data.status == 'siap_dikirim'
-          && request.resource.data.status == 'on_proses_ga')
+          && request.resource.data.status == 'on_proses_ga'
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'sentToGaAt']))
         ||
         // Tandai selesai: pemilik, status lama on_proses_ga -> selesai
         (resource.data.requesterId == request.auth.uid
           && resource.data.status == 'on_proses_ga'
-          && request.resource.data.status == 'selesai')
+          && request.resource.data.status == 'selesai'
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'completedAt']))
       );
 
       allow delete: if false;
