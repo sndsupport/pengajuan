@@ -6,24 +6,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { doc, getDoc } from "firebase/firestore";
-import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
-import { db, firebaseApp } from "@/lib/firebase/client";
+import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { updateUserSchema, UpdateUserInput } from "@/lib/schemas/user";
+import { updateUser } from "@/lib/users/updateUser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-const functions = getFunctions(firebaseApp);
-if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true") {
-  try {
-    connectFunctionsEmulator(functions, "127.0.0.1", 5001);
-  } catch (error) {
-    // connectFunctionsEmulator throws if called again on an already-configured
-    // instance (e.g. Next.js Fast Refresh re-evaluating this module).
-    console.warn("[functions] Emulator connection skipped (already configured):", error);
-  }
-}
 
 const ROLE_OPTIONS = [
   { value: "admin_cabang", label: "Admin Cabang" },
@@ -48,10 +37,6 @@ export default function EditUserPage({ params }: { params: { uid: string } }) {
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [passwordValue, setPasswordValue] = useState("");
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [passwordSuccess, setPasswordSuccess] = useState(false);
-  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   const {
     register,
@@ -118,30 +103,13 @@ export default function EditUserPage({ params }: { params: { uid: string } }) {
   }
 
   async function onSubmit(data: UpdateUserInput) {
+    if (!appUser) return;
     setServerError(null);
     try {
-      const updateUser = httpsCallable(functions, "updateUser");
-      await updateUser({ ...data, email: data.email || null });
+      await updateUser({ ...data, email: data.email || null }, appUser);
       router.push("/admin");
     } catch (err) {
       setServerError(err instanceof Error ? err.message : "Gagal mengubah user.");
-    }
-  }
-
-  async function handleResetPassword(event: React.FormEvent) {
-    event.preventDefault();
-    setPasswordError(null);
-    setPasswordSuccess(false);
-    setIsResettingPassword(true);
-    try {
-      const resetUserPassword = httpsCallable(functions, "resetUserPassword");
-      await resetUserPassword({ uid, newPassword: passwordValue });
-      setPasswordSuccess(true);
-      setPasswordValue("");
-    } catch (err) {
-      setPasswordError(err instanceof Error ? err.message : "Gagal reset password.");
-    } finally {
-      setIsResettingPassword(false);
     }
   }
 
@@ -211,26 +179,12 @@ export default function EditUserPage({ params }: { params: { uid: string } }) {
         </form>
       </div>
 
-      <div className="space-y-4 border-t pt-6">
+      <div className="space-y-2 border-t pt-6">
         <h2 className="text-lg font-semibold">Reset Password</h2>
-        <form onSubmit={handleResetPassword} className="space-y-4">
-          <div className="space-y-1">
-            <Label htmlFor="newPassword">Password Baru</Label>
-            <Input
-              id="newPassword"
-              type="password"
-              value={passwordValue}
-              onChange={(e) => setPasswordValue(e.target.value)}
-              required
-              minLength={6}
-            />
-          </div>
-          {passwordError && <p className="text-sm text-red-600">{passwordError}</p>}
-          {passwordSuccess && <p className="text-sm text-green-600">Password berhasil direset.</p>}
-          <Button type="submit" variant="outline" disabled={isResettingPassword}>
-            {isResettingPassword ? "Memproses..." : "Reset Password"}
-          </Button>
-        </form>
+        <p className="text-sm text-muted-foreground">
+          Reset password tidak bisa dilakukan lewat aplikasi ini. Gunakan tab Authentication di Firebase Console
+          untuk mereset password user.
+        </p>
       </div>
     </main>
   );
