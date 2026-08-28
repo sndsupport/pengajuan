@@ -123,6 +123,7 @@ describe("firestore.rules", () => {
           approverId: "uid-spv",
           approverRole: "spv",
           approverSignatureUrl: "https://drive.google.com/uc?export=view&id=sig",
+          approverName: "Siti Aminah",
         })
       );
     });
