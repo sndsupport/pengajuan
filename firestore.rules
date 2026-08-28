@@ -45,7 +45,7 @@ service cloud.firestore {
           && request.resource.data.approverSignatureUrl is string
           && request.resource.data.approverSignatureUrl.size() > 0
           && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['status', 'approverId', 'approverRole', 'approverSignatureUrl', 'approvedAt', 'reviewedAt']))
+            .hasOnly(['status', 'approverId', 'approverRole', 'approverSignatureUrl', 'approvedAt', 'reviewedAt', 'approverName']))
         ||
         // Review - reject: spv/management, status lama diajukan -> perlu_revisi
         (userRole() in ['spv', 'management']
@@ -55,6 +55,15 @@ service cloud.firestore {
           && request.resource.data.rejectionNote.size() > 0
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['status', 'rejectionNote', 'reviewedAt']))
+        ||
+        // Generate PDF setelah disetujui: approver ATAU pemilik (jalur retry), status lama disetujui -> siap_dikirim
+        ((resource.data.approverId == request.auth.uid || resource.data.requesterId == request.auth.uid)
+          && resource.data.status == 'disetujui'
+          && request.resource.data.status == 'siap_dikirim'
+          && request.resource.data.pdfUrl is string
+          && request.resource.data.pdfUrl.size() > 0
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'pdfUrl']))
         ||
         // Konfirmasi sudah dikirim ke GA: pemilik, status lama siap_dikirim -> on_proses_ga
         (resource.data.requesterId == request.auth.uid

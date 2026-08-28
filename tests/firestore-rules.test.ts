@@ -126,6 +126,19 @@ describe("firestore.rules", () => {
       );
     });
 
+    it("allows spv to approve while also setting approverName", async () => {
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("sub-1").update({
+          status: "disetujui",
+          approverId: "uid-spv",
+          approverRole: "spv",
+          approverSignatureUrl: "https://drive.google.com/uc?export=view&id=sig",
+          approverName: "Siti Aminah",
+        })
+      );
+    });
+
     it("denies approve without approverSignatureUrl", async () => {
       const db = testEnv.authenticatedContext("uid-spv").firestore();
       await assertFails(
@@ -293,6 +306,95 @@ describe("firestore.rules", () => {
       await assertFails(
         db.collection("submissions").doc("sub-siap3").update({
           status: "on_proses_ga",
+          branch: "WHP",
+        })
+      );
+    });
+  });
+
+  describe("submissions update rule — disetujui to siap_dikirim (PDF generation)", () => {
+    it("allows the approver to advance to siap_dikirim with a pdfUrl", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-disetujui").set({
+          requesterId: "uid-admin",
+          approverId: "uid-spv",
+          status: "disetujui",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("sub-disetujui").update({
+          status: "siap_dikirim",
+          pdfUrl: "https://drive.google.com/file/d/pdf-1/view",
+        })
+      );
+    });
+
+    it("allows the requester to advance to siap_dikirim with a pdfUrl (retry path)", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-disetujui2").set({
+          requesterId: "uid-admin",
+          approverId: "uid-spv",
+          status: "disetujui",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("sub-disetujui2").update({
+          status: "siap_dikirim",
+          pdfUrl: "https://drive.google.com/file/d/pdf-2/view",
+        })
+      );
+    });
+
+    it("denies an unrelated user from advancing to siap_dikirim", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-disetujui3").set({
+          requesterId: "uid-admin",
+          approverId: "uid-spv",
+          status: "disetujui",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-snd").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-disetujui3").update({
+          status: "siap_dikirim",
+          pdfUrl: "https://drive.google.com/file/d/pdf-3/view",
+        })
+      );
+    });
+
+    it("denies advancing to siap_dikirim without a pdfUrl", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-disetujui4").set({
+          requesterId: "uid-admin",
+          approverId: "uid-spv",
+          status: "disetujui",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-disetujui4").update({
+          status: "siap_dikirim",
+          pdfUrl: "",
+        })
+      );
+    });
+
+    it("denies advancing to siap_dikirim while also modifying an unrelated field", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-disetujui5").set({
+          requesterId: "uid-admin",
+          approverId: "uid-spv",
+          status: "disetujui",
+          branch: "WHO",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-disetujui5").update({
+          status: "siap_dikirim",
+          pdfUrl: "https://drive.google.com/file/d/pdf-5/view",
           branch: "WHP",
         })
       );
