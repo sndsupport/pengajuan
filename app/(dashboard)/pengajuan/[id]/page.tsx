@@ -174,7 +174,7 @@ export default function PengajuanDetailPage({ params }: { params: { id: string }
         </div>
       )}
 
-      {submission.status === "on_proses_ga" && (
+      {submission.status === "on_proses_ga" && appUser && (
         <div className="space-y-3 rounded border p-3">
           <p className="font-medium">Barang/layanan sudah diterima?</p>
           {markDoneError && <p className="text-sm text-red-600">{markDoneError}</p>}
