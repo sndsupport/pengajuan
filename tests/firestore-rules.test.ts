@@ -14,9 +14,10 @@ describe("firestore.rules", () => {
 
     await testEnv.withSecurityRulesDisabled(async (context) => {
       const db = context.firestore();
-      await db.collection("users").doc("uid-admin").set({ role: "admin_cabang", branch: "WHO" });
-      await db.collection("users").doc("uid-snd").set({ role: "snd", branch: "SND" });
-      await db.collection("users").doc("uid-spv").set({ role: "spv", branch: "WHO" });
+      await db.collection("users").doc("uid-admin").set({ role: "admin_cabang", branch: "WHO", name: "Budi Santoso" });
+      await db.collection("users").doc("uid-snd").set({ role: "snd", branch: "SND", name: "Dewi Lestari" });
+      await db.collection("users").doc("uid-spv").set({ role: "spv", branch: "WHO", name: "Siti Aminah" });
+      await db.collection("users").doc("uid-spv2").set({ role: "spv", branch: "WHO", name: "Rudi Hartono" });
       await db.collection("submissions").doc("sub-1").set({ requesterId: "uid-admin", status: "diajukan" });
       await db.collection("submissions").doc("sub-1").collection("items").doc("item-1").set({
         itemName: "Toyota Avanza",
@@ -135,6 +136,19 @@ describe("firestore.rules", () => {
           approverRole: "spv",
           approverSignatureUrl: "https://drive.google.com/uc?export=view&id=sig",
           approverName: "Siti Aminah",
+        })
+      );
+    });
+
+    it("denies approve when approverName doesn't match the caller's real name", async () => {
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-1").update({
+          status: "disetujui",
+          approverId: "uid-spv",
+          approverRole: "spv",
+          approverSignatureUrl: "https://drive.google.com/uc?export=view&id=sig",
+          approverName: "Someone Else",
         })
       );
     });
@@ -360,6 +374,40 @@ describe("firestore.rules", () => {
         db.collection("submissions").doc("sub-disetujui3").update({
           status: "siap_dikirim",
           pdfUrl: "https://drive.google.com/file/d/pdf-3/view",
+        })
+      );
+    });
+
+    it("denies a different spv/management user (not the recorded approver) from advancing to siap_dikirim", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-disetujui6").set({
+          requesterId: "uid-admin",
+          approverId: "uid-spv",
+          status: "disetujui",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-spv2").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-disetujui6").update({
+          status: "siap_dikirim",
+          pdfUrl: "https://drive.google.com/file/d/pdf-6/view",
+        })
+      );
+    });
+
+    it("denies advancing to siap_dikirim with a non-Drive pdfUrl", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-disetujui7").set({
+          requesterId: "uid-admin",
+          approverId: "uid-spv",
+          status: "disetujui",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-disetujui7").update({
+          status: "siap_dikirim",
+          pdfUrl: "javascript:alert(1)",
         })
       );
     });

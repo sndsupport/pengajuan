@@ -42,6 +42,7 @@ service cloud.firestore {
           && request.resource.data.status == 'disetujui'
           && request.resource.data.approverId == request.auth.uid
           && request.resource.data.approverRole == userRole()
+          && request.resource.data.approverName == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.name
           && request.resource.data.approverSignatureUrl is string
           && request.resource.data.approverSignatureUrl.size() > 0
           && request.resource.data.diff(resource.data).affectedKeys()
@@ -62,6 +63,7 @@ service cloud.firestore {
           && request.resource.data.status == 'siap_dikirim'
           && request.resource.data.pdfUrl is string
           && request.resource.data.pdfUrl.size() > 0
+          && request.resource.data.pdfUrl.matches('^https://drive[.]google[.]com/.*')
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['status', 'pdfUrl']))
         ||
