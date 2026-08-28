@@ -28,13 +28,28 @@ function waitForImagesToLoad(container: HTMLElement): Promise<void> {
   return Promise.all(
     images.map(
       (img) =>
-        new Promise<void>((resolve) => {
+        new Promise<void>((resolve, reject) => {
+          // naturalWidth > 0 is the reliable signal a load actually succeeded —
+          // img.complete alone becomes true even for a broken/CORS-blocked image
+          // once the browser is done attempting it, success or not. Rejecting
+          // here (rather than silently resolving on error, as before) turns a
+          // blank/missing signature in the generated PDF into a visible,
+          // catchable error instead of a silently-produced defective document.
+          function settle() {
+            if (img.naturalWidth > 0) {
+              resolve();
+            } else {
+              reject(new Error(`Gagal memuat gambar tanda tangan: ${img.src}`));
+            }
+          }
           if (img.complete) {
-            resolve();
+            settle();
             return;
           }
-          img.addEventListener("load", () => resolve(), { once: true });
-          img.addEventListener("error", () => resolve(), { once: true });
+          img.addEventListener("load", settle, { once: true });
+          img.addEventListener("error", () => reject(new Error(`Gagal memuat gambar tanda tangan: ${img.src}`)), {
+            once: true,
+          });
         })
     )
   ).then(() => undefined);
