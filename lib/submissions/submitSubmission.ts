@@ -25,6 +25,10 @@ export async function submitSubmission(rawInput: unknown, caller: AppUser): Prom
 }
 
 async function createNewSubmission(input: CreateSubmissionInput, caller: AppUser): Promise<SubmitSubmissionResult> {
+  // NOTE: unlike the old Cloud Function (server clock, trustworthy), this now runs
+  // client-side — a misconfigured device clock/timezone could stamp the wrong
+  // month/year on submissionNumber. Accepted risk: no cheap way to get a trusted
+  // server time synchronously before the counter transaction without Cloud Functions.
   const now = new Date();
   const submissionNumber = await getNextSubmissionNumber(db, caller.branch!, now.getFullYear(), now.getMonth() + 1);
 
@@ -72,7 +76,14 @@ async function createNewSubmission(input: CreateSubmissionInput, caller: AppUser
     actorRole: caller.role,
     timestamp: serverTimestamp(),
   });
-  await batch.commit();
+  try {
+    await batch.commit();
+  } catch (error) {
+    throw new Error(
+      `Pengajuan ${submissionNumber} sudah dibuat tapi item/lampirannya gagal tersimpan. Hubungi admin untuk pengecekan manual.`,
+      { cause: error }
+    );
+  }
 
   return { submissionId: submissionRef.id, submissionNumber, status: "diajukan" };
 }
