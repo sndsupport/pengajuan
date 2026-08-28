@@ -3,25 +3,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
-import { httpsCallable, getFunctions, connectFunctionsEmulator } from "firebase/functions";
-import { db, firebaseApp } from "@/lib/firebase/client";
+import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { StatusBadge } from "@/components/status-badge/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { SignaturePad } from "@/components/signature-pad/SignaturePad";
 import { FileUpload } from "@/components/file-upload/FileUpload";
-
-const functions = getFunctions(firebaseApp);
-if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true") {
-  try {
-    connectFunctionsEmulator(functions, "127.0.0.1", 5001);
-  } catch (error) {
-    // connectFunctionsEmulator throws if called again on an already-configured
-    // instance (e.g. Next.js Fast Refresh re-evaluating this module).
-    console.warn("[functions] Emulator connection skipped (already configured):", error);
-  }
-}
+import { reviewSubmission } from "@/lib/submissions/reviewSubmission";
 
 type QueueRow = { id: string; submissionNumber: string; type: string; branch: string };
 
@@ -72,16 +61,19 @@ export default function PersetujuanPage() {
   }
 
   async function handleDecision(submissionId: string, decision: "approve" | "reject") {
+    if (!appUser) return;
     setBusyId(submissionId);
     setActionErrorBySubmission((prev) => ({ ...prev, [submissionId]: "" }));
     try {
-      const reviewSubmission = httpsCallable(functions, "reviewSubmission");
-      await reviewSubmission({
-        submissionId,
-        decision,
-        rejectionNote: noteBySubmission[submissionId],
-        approverSignatureUrl: decision === "approve" ? signatureBySubmission[submissionId] : undefined,
-      });
+      await reviewSubmission(
+        {
+          submissionId,
+          decision,
+          rejectionNote: noteBySubmission[submissionId],
+          approverSignatureUrl: decision === "approve" ? signatureBySubmission[submissionId] : undefined,
+        },
+        appUser
+      );
     } catch (err) {
       setActionErrorBySubmission((prev) => ({
         ...prev,
