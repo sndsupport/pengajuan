@@ -5,9 +5,8 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
 import { doc, getDoc, collection, getDocs } from "firebase/firestore";
-import { firebaseApp, db } from "@/lib/firebase/client";
+import { db } from "@/lib/firebase/client";
 import { createSubmissionSchema, CreateSubmissionInput, subTypeByType } from "@/lib/schemas/submission";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,21 +14,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SignaturePad } from "@/components/signature-pad/SignaturePad";
 import { FileUpload } from "@/components/file-upload/FileUpload";
-
-const functions = getFunctions(firebaseApp);
-if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true") {
-  try {
-    connectFunctionsEmulator(functions, "127.0.0.1", 5001);
-  } catch (error) {
-    // connectFunctionsEmulator throws if called again on an already-configured
-    // instance (e.g. Next.js Fast Refresh re-evaluating this module).
-    console.warn("[functions] Emulator connection skipped (already configured):", error);
-  }
-}
+import { useAuth } from "@/lib/hooks/useAuth";
+import { submitSubmission } from "@/lib/submissions/submitSubmission";
 
 export default function NewPengajuanPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { appUser } = useAuth();
   const resubmitId = searchParams.get("resubmit") ?? undefined;
   const [serverError, setServerError] = useState<string | null>(null);
   const [isLoadingResubmit, setIsLoadingResubmit] = useState(!!resubmitId);
@@ -156,11 +147,11 @@ export default function NewPengajuanPage() {
   }, [resubmitId, reset]);
 
   async function onSubmit(data: CreateSubmissionInput) {
+    if (!appUser) return;
     setServerError(null);
     try {
-      const submitSubmission = httpsCallable(functions, "submitSubmission");
-      const result = await submitSubmission(data);
-      router.push(`/pengajuan/${(result.data as { submissionId: string }).submissionId}`);
+      const result = await submitSubmission(data, appUser);
+      router.push(`/pengajuan/${result.submissionId}`);
     } catch (err) {
       setServerError(err instanceof Error ? err.message : "Gagal mengirim pengajuan.");
     }
