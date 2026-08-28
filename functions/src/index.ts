@@ -1,21 +1,9 @@
 import { onCall } from "firebase-functions/v2/https";
 import { onDocumentUpdated } from "firebase-functions/v2/firestore";
-import { submitSubmissionHandler } from "./submitSubmission";
-import { reviewSubmissionHandler } from "./reviewSubmission";
 import { createUserHandler } from "./createUser";
 import { updateUserHandler } from "./updateUser";
 import { resetUserPasswordHandler } from "./resetUserPassword";
-import { confirmSentToGaHandler } from "./confirmSentToGa";
-import { markAsDoneHandler } from "./markAsDone";
 import { shouldGeneratePdf, generateSubmissionPdfHandler } from "./generateSubmissionPdf";
-
-export const submitSubmission = onCall((request) =>
-  submitSubmissionHandler(request.data, { auth: request.auth ? { uid: request.auth.uid } : undefined })
-);
-
-export const reviewSubmission = onCall((request) =>
-  reviewSubmissionHandler(request.data, { auth: request.auth ? { uid: request.auth.uid } : undefined })
-);
 
 export const createUser = onCall((request) =>
   createUserHandler(request.data, { auth: request.auth ? { uid: request.auth.uid } : undefined })
@@ -27,14 +15,6 @@ export const updateUser = onCall((request) =>
 
 export const resetUserPassword = onCall((request) =>
   resetUserPasswordHandler(request.data, { auth: request.auth ? { uid: request.auth.uid } : undefined })
-);
-
-export const confirmSentToGa = onCall((request) =>
-  confirmSentToGaHandler(request.data, { auth: request.auth ? { uid: request.auth.uid } : undefined })
-);
-
-export const markAsDone = onCall((request) =>
-  markAsDoneHandler(request.data, { auth: request.auth ? { uid: request.auth.uid } : undefined })
 );
 
 // Puppeteer needs meaningfully more memory/time than the default 256MiB/60s —
