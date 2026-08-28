@@ -5,24 +5,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
-import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
-import { firebaseApp } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { createUserSchema, CreateUserInput } from "@/lib/schemas/user";
+import { createUser } from "@/lib/users/createUser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-const functions = getFunctions(firebaseApp);
-if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true") {
-  try {
-    connectFunctionsEmulator(functions, "127.0.0.1", 5001);
-  } catch (error) {
-    // connectFunctionsEmulator throws if called again on an already-configured
-    // instance (e.g. Next.js Fast Refresh re-evaluating this module).
-    console.warn("[functions] Emulator connection skipped (already configured):", error);
-  }
-}
 
 const ROLE_OPTIONS = [
   { value: "admin_cabang", label: "Admin Cabang" },
@@ -78,10 +66,10 @@ export default function NewUserPage() {
   }
 
   async function onSubmit(data: CreateUserInput) {
+    if (!appUser) return;
     setServerError(null);
     try {
-      const createUser = httpsCallable(functions, "createUser");
-      await createUser({ ...data, email: data.email || null });
+      await createUser({ ...data, email: data.email || null }, appUser);
       router.push("/admin");
     } catch (err) {
       setServerError(err instanceof Error ? err.message : "Gagal membuat user.");
