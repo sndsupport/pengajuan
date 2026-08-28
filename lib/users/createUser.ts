@@ -1,5 +1,5 @@
 import { initializeApp, deleteApp } from "firebase/app";
-import { getAuth, createUserWithEmailAndPassword, signOut } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword, connectAuthEmulator, signOut } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db, firebaseApp } from "@/lib/firebase/client";
 import { createUserSchema, CreateUserInput } from "@/lib/schemas/user";
@@ -27,6 +27,9 @@ export async function createUser(rawInput: unknown, caller: AppUser): Promise<Cr
   // app instance used everywhere else in this codebase.
   const secondaryApp = initializeApp(firebaseApp.options, `secondary-user-creation-${crypto.randomUUID()}`);
   const secondaryAuth = getAuth(secondaryApp);
+  if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true") {
+    connectAuthEmulator(secondaryAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+  }
 
   let uid: string;
   try {
