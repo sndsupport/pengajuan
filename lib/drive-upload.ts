@@ -142,3 +142,14 @@ export async function uploadToDriveClient(
 
   return { fileId: uploaded.id, fileUrl };
 }
+
+export async function deleteFromDriveClient(fileId: string): Promise<void> {
+  const accessToken = await getDriveAccessToken();
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok && res.status !== 404) {
+    throw new Error(`Gagal menghapus file di Google Drive (${res.status}).`);
+  }
+}
