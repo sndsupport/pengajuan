@@ -522,6 +522,100 @@ describe("firestore.rules", () => {
     });
   });
 
+  describe("users write rule", () => {
+    it("allows superadmin to create a new user", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("users").doc("uid-super").set({
+          role: "superadmin",
+          branch: null,
+          name: "Admin Utama",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertSucceeds(
+        db.collection("users").doc("uid-new").set({
+          name: "User Baru",
+          username: "user.baru",
+          role: "admin_cabang",
+          branch: "WHO",
+          department: "Operasional",
+          position: "Admin Cabang",
+          email: null,
+        })
+      );
+    });
+
+    it("allows superadmin to update an existing user", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("users").doc("uid-super").set({
+          role: "superadmin",
+          branch: null,
+          name: "Admin Utama",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertSucceeds(
+        db.collection("users").doc("uid-admin").update({
+          name: "Budi Santoso Updated",
+          role: "admin_cabang",
+          branch: "WHP",
+          department: "Operasional",
+          position: "Admin Cabang",
+          email: null,
+        })
+      );
+    });
+
+    it("denies a non-superadmin from creating a user", async () => {
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("users").doc("uid-new2").set({
+          name: "User Baru",
+          username: "user.baru2",
+          role: "admin_cabang",
+          branch: "WHO",
+          department: "Operasional",
+          position: "Admin Cabang",
+          email: null,
+        })
+      );
+    });
+
+    it("denies creating a user with an invalid role value", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("users").doc("uid-super").set({
+          role: "superadmin",
+          branch: null,
+          name: "Admin Utama",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertFails(
+        db.collection("users").doc("uid-new3").set({
+          name: "User Baru",
+          username: "user.baru3",
+          role: "not_a_real_role",
+          branch: null,
+          department: "Operasional",
+          position: "Staff",
+          email: null,
+        })
+      );
+    });
+
+    it("denies any client from deleting a user", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("users").doc("uid-super").set({
+          role: "superadmin",
+          branch: null,
+          name: "Admin Utama",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertFails(db.collection("users").doc("uid-admin").delete());
+    });
+  });
+
   describe("items subcollection rule", () => {
     it("allows the owner to read an item under their own submission", async () => {
       const db = testEnv.authenticatedContext("uid-admin").firestore();

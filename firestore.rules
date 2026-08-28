@@ -16,7 +16,10 @@ service cloud.firestore {
 
     match /users/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || userRole() in ['spv', 'management', 'superadmin']);
-      allow write: if false;
+      allow create, update: if isSignedIn()
+        && userRole() == 'superadmin'
+        && request.resource.data.role in ['admin_cabang', 'snd', 'spv', 'management', 'superadmin'];
+      allow delete: if false;
     }
 
     match /submissions/{submissionId} {
