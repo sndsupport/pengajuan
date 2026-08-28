@@ -1,8 +1,6 @@
 import { defineConfig, configDefaults } from "vitest/config";
-import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
-  plugins: [tsconfigPaths()],
   test: {
     // functions/lib is the tsc build output of functions/src (needed for the
     // Firebase Functions emulator). Without this exclude, vitest's default

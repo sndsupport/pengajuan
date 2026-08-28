@@ -1,7 +1,11 @@
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { buildSubmissionPdfHtml, SubmissionPdfData } from "./pdfTemplate";
-import { uploadToDriveClient } from "@/lib/drive-upload";
+// Relative import (not "@/lib/drive-upload"): the vite-tsconfig-paths plugin
+// needed to resolve "@/..." aliases under Vitest breaks the entire test suite
+// when invoked from a lowercase-cased working directory (e.g. Git Bash's
+// default on Windows) — not worth the tooling risk for one import.
+import { uploadToDriveClient } from "../drive-upload";
 
 const GOOGLE_FONTS_HREF =
   "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&family=Public+Sans:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap";
@@ -11,7 +15,7 @@ const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297;
 const RENDER_WIDTH_PX = 794; // ~210mm at 96dpi, so the captured canvas maps cleanly onto an A4-width page
 
-async function ensureGoogleFontsLoaded(): Promise<void> {
+function ensureGoogleFontsLinkInjected(): void {
   if (!document.getElementById(GOOGLE_FONTS_LINK_ID)) {
     const link = document.createElement("link");
     link.id = GOOGLE_FONTS_LINK_ID;
@@ -19,7 +23,6 @@ async function ensureGoogleFontsLoaded(): Promise<void> {
     link.href = GOOGLE_FONTS_HREF;
     document.head.appendChild(link);
   }
-  await document.fonts.ready;
 }
 
 function waitForImagesToLoad(container: HTMLElement): Promise<void> {
@@ -63,7 +66,7 @@ export function computePdfPageSlices(
 export type GenerateSubmissionPdfResult = { pdfUrl: string };
 
 export async function generateSubmissionPdfClient(data: SubmissionPdfData): Promise<GenerateSubmissionPdfResult> {
-  await ensureGoogleFontsLoaded();
+  ensureGoogleFontsLinkInjected();
 
   const container = document.createElement("div");
   container.style.position = "fixed";
@@ -74,6 +77,7 @@ export async function generateSubmissionPdfClient(data: SubmissionPdfData): Prom
   document.body.appendChild(container);
 
   try {
+    await document.fonts.ready;
     await waitForImagesToLoad(container);
 
     const canvas = await html2canvas(container, { useCORS: true, scale: 2 });
