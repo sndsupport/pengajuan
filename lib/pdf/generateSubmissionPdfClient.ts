@@ -1,10 +1,8 @@
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { buildSubmissionPdfHtml, SubmissionPdfData } from "./pdfTemplate";
-// Relative import (not "@/lib/drive-upload"): the vite-tsconfig-paths plugin
-// needed to resolve "@/..." aliases under Vitest breaks the entire test suite
-// when invoked from a lowercase-cased working directory (e.g. Git Bash's
-// default on Windows) — not worth the tooling risk for one import.
+// Relative import (not "@/lib/drive-upload"): avoids pulling in a path-alias
+// resolution plugin for Vitest just for this one import.
 import { uploadToDriveClient } from "../drive-upload";
 
 const GOOGLE_FONTS_HREF =
