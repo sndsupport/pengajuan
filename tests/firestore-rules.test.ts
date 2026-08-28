@@ -566,6 +566,27 @@ describe("firestore.rules", () => {
       );
     });
 
+    it("allows superadmin to update their own user document", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("users").doc("uid-super").set({
+          role: "superadmin",
+          branch: null,
+          name: "Admin Utama",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertSucceeds(
+        db.collection("users").doc("uid-super").update({
+          name: "Admin Utama Updated",
+          role: "superadmin",
+          branch: null,
+          department: "Manajemen",
+          position: "Superadmin",
+          email: null,
+        })
+      );
+    });
+
     it("denies a non-superadmin from creating a user", async () => {
       const db = testEnv.authenticatedContext("uid-spv").firestore();
       await assertFails(
