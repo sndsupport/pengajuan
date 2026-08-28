@@ -2,6 +2,7 @@ import { collection, doc, getDoc, serverTimestamp, writeBatch } from "firebase/f
 import { db } from "@/lib/firebase/client";
 import { reviewSubmissionSchema, ReviewSubmissionInput } from "@/lib/schemas/submission";
 import type { AppUser } from "@/lib/hooks/useAuth";
+import { generateAndAttachSubmissionPdf } from "@/lib/pdf/generateAndAttachSubmissionPdf";
 
 export type ReviewSubmissionResult = { submissionId: string; status: "disetujui" | "perlu_revisi" };
 
@@ -35,6 +36,7 @@ export async function reviewSubmission(rawInput: unknown, caller: AppUser): Prom
       approverId: caller.uid,
       approverRole: caller.role,
       approverSignatureUrl: input.approverSignatureUrl,
+      approverName: caller.name,
       approvedAt: serverTimestamp(),
       reviewedAt: serverTimestamp(),
     });
@@ -61,5 +63,14 @@ export async function reviewSubmission(rawInput: unknown, caller: AppUser): Prom
   }
 
   await batch.commit();
+
+  if (input.decision === "approve") {
+    try {
+      await generateAndAttachSubmissionPdf(input.submissionId, caller);
+    } catch (error) {
+      console.error(`reviewSubmission: PDF generation failed for submission ${input.submissionId}`, error);
+    }
+  }
+
   return { submissionId: input.submissionId, status: input.decision === "approve" ? "disetujui" : "perlu_revisi" };
 }
