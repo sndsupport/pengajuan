@@ -49,10 +49,3 @@ export const updateUserSchema = z
   });
 
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
-
-export const resetUserPasswordSchema = z.object({
-  uid: z.string().min(1),
-  newPassword: z.string().min(6, "Password minimal 6 karakter"),
-});
-
-export type ResetUserPasswordInput = z.infer<typeof resetUserPasswordSchema>;

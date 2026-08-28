@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createUserSchema, updateUserSchema, resetUserPasswordSchema, isValidBranchForRole } from "./user";
+import { createUserSchema, updateUserSchema, isValidBranchForRole } from "./user";
 
 describe("isValidBranchForRole", () => {
   it("requires WHO or WHP for admin_cabang", () => {
@@ -89,15 +89,5 @@ describe("updateUserSchema", () => {
 
   it("rejects mismatched branch/role", () => {
     expect(updateUserSchema.safeParse({ ...valid, role: "snd", branch: "WHO" }).success).toBe(false);
-  });
-});
-
-describe("resetUserPasswordSchema", () => {
-  it("rejects a password shorter than 6 characters", () => {
-    expect(resetUserPasswordSchema.safeParse({ uid: "abc", newPassword: "123" }).success).toBe(false);
-  });
-
-  it("accepts a 6+ character password", () => {
-    expect(resetUserPasswordSchema.safeParse({ uid: "abc", newPassword: "abcdef" }).success).toBe(true);
   });
 });
