@@ -1,19 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
-import { firebaseApp } from "@/lib/firebase/client";
-
-const functions = getFunctions(firebaseApp);
-if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "true") {
-  try {
-    connectFunctionsEmulator(functions, "127.0.0.1", 5001);
-  } catch (error) {
-    // connectFunctionsEmulator throws if called again on an already-configured
-    // instance (e.g. Next.js Fast Refresh re-evaluating this module).
-    console.warn("[functions] Emulator connection skipped (already configured):", error);
-  }
-}
+import { uploadToDriveClient } from "@/lib/drive-upload";
 
 export type UploadedFile = { fileId: string; fileUrl: string; fileName: string; fileType: string };
 
@@ -31,15 +19,6 @@ const PURPOSE_CONFIG = {
     accept: "image/png",
   },
 } as const;
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error ?? new Error("Gagal membaca file."));
-    reader.readAsDataURL(file);
-  });
-}
 
 export function FileUpload({
   purpose,
@@ -70,10 +49,8 @@ export function FileUpload({
 
     setUploading(true);
     try {
-      const fileData = await readFileAsDataUrl(file);
-      const uploadFile = httpsCallable(functions, "uploadFile");
-      const result = await uploadFile({ purpose, fileName: file.name, fileType: file.type, fileData });
-      onUploaded(result.data as UploadedFile);
+      const { fileId, fileUrl } = await uploadToDriveClient(file, purpose);
+      onUploaded({ fileId, fileUrl, fileName: file.name, fileType: file.type });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal upload file.");
     } finally {
