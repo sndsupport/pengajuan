@@ -20,7 +20,7 @@ declare global {
   }
 }
 
-function loadGoogleIdentityServices(): Promise<void> {
+export function loadGoogleIdentityServices(): Promise<void> {
   if (typeof window === "undefined") {
     return Promise.reject(new Error("Google Identity Services hanya bisa dimuat di browser."));
   }
