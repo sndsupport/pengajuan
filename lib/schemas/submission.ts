@@ -88,3 +88,41 @@ export const markAsDoneSchema = z.object({
 });
 
 export type MarkAsDoneInput = z.infer<typeof markAsDoneSchema>;
+
+export const personaliaSubTypeSchema = z.enum(["lembur", "cuti", "izin"]);
+
+export const PERSONALIA_SUBTYPE_LABEL: Record<z.infer<typeof personaliaSubTypeSchema>, string> = {
+  lembur: "Lembur",
+  cuti: "Cuti",
+  izin: "Izin",
+};
+
+export const createPersonaliaSubmissionSchema = z
+  .object({
+    submissionId: z.string().nullish(),
+    subType: personaliaSubTypeSchema,
+    employeeName: z.string().min(1, "Nama karyawan wajib diisi"),
+    periodStart: z.string().min(1, "Tanggal mulai wajib diisi"),
+    periodEnd: z.string().min(1, "Tanggal selesai wajib diisi"),
+    attachment: attachmentSchema,
+  })
+  .refine((data) => data.periodEnd >= data.periodStart, {
+    message: "Tanggal selesai tidak boleh sebelum tanggal mulai",
+    path: ["periodEnd"],
+  });
+
+export type CreatePersonaliaSubmissionInput = z.infer<typeof createPersonaliaSubmissionSchema>;
+
+export const reviewPersonaliaSubmissionSchema = z
+  .object({
+    submissionId: z.string().min(1),
+    decision: z.enum(["approve", "reject"]),
+    rejectionNote: z.string().nullish(),
+    note: z.string().nullish(),
+  })
+  .refine((data) => data.decision !== "reject" || (data.rejectionNote && data.rejectionNote.trim().length > 0), {
+    message: "rejectionNote wajib diisi saat reject",
+    path: ["rejectionNote"],
+  });
+
+export type ReviewPersonaliaSubmissionInput = z.infer<typeof reviewPersonaliaSubmissionSchema>;

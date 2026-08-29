@@ -1,6 +1,14 @@
 // lib/schemas/submission.test.ts
 import { describe, it, expect } from "vitest";
-import { createSubmissionSchema, reviewSubmissionSchema, uploadFileSchema, confirmSentToGaSchema, markAsDoneSchema } from "./submission";
+import {
+  createSubmissionSchema,
+  reviewSubmissionSchema,
+  uploadFileSchema,
+  confirmSentToGaSchema,
+  markAsDoneSchema,
+  createPersonaliaSubmissionSchema,
+  reviewPersonaliaSubmissionSchema,
+} from "./submission";
 
 describe("createSubmissionSchema", () => {
   const validPayload = {
@@ -232,5 +240,81 @@ describe("markAsDoneSchema", () => {
 
   it("rejects a missing submissionId", () => {
     expect(markAsDoneSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("createPersonaliaSubmissionSchema", () => {
+  const validPayload = {
+    subType: "cuti" as const,
+    employeeName: "Rahmat Hidayat",
+    periodStart: "2026-09-01",
+    periodEnd: "2026-09-03",
+    attachment: {
+      fileId: "file-cuti-1",
+      fileUrl: "https://drive.google.com/file/d/cuti1/view",
+      fileName: "form-cuti-rahmat.pdf",
+      fileType: "application/pdf",
+    },
+  };
+
+  it("accepts a valid cuti payload", () => {
+    expect(createPersonaliaSubmissionSchema.safeParse(validPayload).success).toBe(true);
+  });
+
+  it("accepts lembur and izin as subType", () => {
+    expect(createPersonaliaSubmissionSchema.safeParse({ ...validPayload, subType: "lembur" }).success).toBe(true);
+    expect(createPersonaliaSubmissionSchema.safeParse({ ...validPayload, subType: "izin" }).success).toBe(true);
+  });
+
+  it("rejects an unknown subType", () => {
+    expect(createPersonaliaSubmissionSchema.safeParse({ ...validPayload, subType: "sakit" }).success).toBe(false);
+  });
+
+  it("rejects an empty employeeName", () => {
+    expect(createPersonaliaSubmissionSchema.safeParse({ ...validPayload, employeeName: "" }).success).toBe(false);
+  });
+
+  it("rejects periodEnd before periodStart", () => {
+    const result = createPersonaliaSubmissionSchema.safeParse({
+      ...validPayload,
+      periodStart: "2026-09-05",
+      periodEnd: "2026-09-01",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a missing attachment", () => {
+    const { attachment, ...rest } = validPayload;
+    expect(createPersonaliaSubmissionSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it("allows submissionId to be null (resubmit path serializes an absent field as null)", () => {
+    expect(createPersonaliaSubmissionSchema.safeParse({ ...validPayload, submissionId: null }).success).toBe(true);
+  });
+});
+
+describe("reviewPersonaliaSubmissionSchema", () => {
+  it("requires rejectionNote when decision is reject", () => {
+    const result = reviewPersonaliaSubmissionSchema.safeParse({ submissionId: "abc", decision: "reject", rejectionNote: "" });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts reject with a non-empty rejectionNote", () => {
+    const result = reviewPersonaliaSubmissionSchema.safeParse({
+      submissionId: "abc",
+      decision: "reject",
+      rejectionNote: "Tanggal cuti tidak jelas",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts approve without requiring a note", () => {
+    const result = reviewPersonaliaSubmissionSchema.safeParse({ submissionId: "abc", decision: "approve" });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts approve with an optional note", () => {
+    const result = reviewPersonaliaSubmissionSchema.safeParse({ submissionId: "abc", decision: "approve", note: "OK" });
+    expect(result.success).toBe(true);
   });
 });
