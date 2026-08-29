@@ -80,6 +80,28 @@ describe("createSubmissionSchema", () => {
   });
 });
 
+describe("createSubmissionSchema — gedung_fasilitas", () => {
+  it("accepts a valid gedung_fasilitas payload without km", () => {
+    const payload = {
+      type: "gedung_fasilitas" as const,
+      subType: "perbaikan" as const,
+      requesterSignatureUrl: "https://storage.example.com/sig.png",
+      items: [{ itemName: "AC ruang meeting", brandType: "Daikin 1PK", km: null, quantity: 1, unit: "unit", description: "Bocor freon" }],
+    };
+    expect(createSubmissionSchema.safeParse(payload).success).toBe(true);
+  });
+
+  it("rejects a subType not valid for gedung_fasilitas", () => {
+    const payload = {
+      type: "gedung_fasilitas" as const,
+      subType: "service_berkala",
+      requesterSignatureUrl: "https://storage.example.com/sig.png",
+      items: [{ itemName: "AC ruang meeting", brandType: "Daikin 1PK", km: null, quantity: 1, unit: "unit", description: "" }],
+    };
+    expect(createSubmissionSchema.safeParse(payload).success).toBe(false);
+  });
+});
+
 describe("reviewSubmissionSchema", () => {
   it("requires rejectionNote when decision is reject", () => {
     const result = reviewSubmissionSchema.safeParse({ submissionId: "abc", decision: "reject", rejectionNote: "" });

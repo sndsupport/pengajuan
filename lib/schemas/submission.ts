@@ -1,10 +1,18 @@
 import { z } from "zod";
 
-export const submissionTypeSchema = z.enum(["kendaraan", "perlengkapan"]);
+export const submissionTypeSchema = z.enum(["kendaraan", "perlengkapan", "gedung_fasilitas", "personalia"]);
 
 export const subTypeByType = {
   kendaraan: ["service_berkala", "service_insidentil", "pengadaan_baru"] as const,
   perlengkapan: ["pengadaan_baru", "penggantian"] as const,
+  gedung_fasilitas: ["pengadaan_baru", "perbaikan"] as const,
+};
+
+export const TYPE_LABEL: Record<string, string> = {
+  kendaraan: "Kendaraan",
+  perlengkapan: "Perlengkapan",
+  gedung_fasilitas: "Gedung & Fasilitas",
+  personalia: "Personalia",
 };
 
 export const itemSchema = z.object({
