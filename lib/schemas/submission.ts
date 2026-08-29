@@ -40,7 +40,7 @@ export const createSubmissionSchema = z
     items: z.array(itemSchema).min(1, "Minimal 1 item"),
     attachments: z.array(attachmentSchema).default([]),
   })
-  .refine((data) => (subTypeByType[data.type] as readonly string[]).includes(data.subType), {
+  .refine((data) => (subTypeByType[data.type] as readonly string[] | undefined)?.includes(data.subType) ?? false, {
     message: "subType tidak valid untuk type ini",
     path: ["subType"],
   });

@@ -100,6 +100,24 @@ describe("createSubmissionSchema — gedung_fasilitas", () => {
     };
     expect(createSubmissionSchema.safeParse(payload).success).toBe(false);
   });
+
+  it("rejects type personalia via safeParse instead of throwing (no subTypeByType entry for it)", () => {
+    expect(() =>
+      createSubmissionSchema.safeParse({
+        type: "personalia",
+        subType: "lembur",
+        requesterSignatureUrl: "https://storage.example.com/sig.png",
+        items: [{ itemName: "x", brandType: "x", km: null, quantity: 1, unit: "x", description: "" }],
+      })
+    ).not.toThrow();
+    const result = createSubmissionSchema.safeParse({
+      type: "personalia",
+      subType: "lembur",
+      requesterSignatureUrl: "https://storage.example.com/sig.png",
+      items: [{ itemName: "x", brandType: "x", km: null, quantity: 1, unit: "x", description: "" }],
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("reviewSubmissionSchema", () => {
