@@ -96,6 +96,7 @@ service cloud.firestore {
           && request.resource.data.status == 'diajukan'
           && request.resource.data.spvApproval == null
           && request.resource.data.managerApproval == null
+          && (userRole() != 'spv' || request.resource.data.subType in ['cuti', 'izin'])
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['subType', 'employeeName', 'periodStart', 'periodEnd', 'status', 'rejectionNote', 'spvApproval', 'managerApproval']))
         ||

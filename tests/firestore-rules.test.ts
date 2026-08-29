@@ -972,5 +972,57 @@ describe("firestore.rules", () => {
         })
       );
     });
+
+    it("denies an spv owner from resubmitting a rejected personalia submission as lembur", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("pers-resubmit-3").set({
+          requesterId: "uid-spv",
+          status: "perlu_revisi",
+          type: "personalia",
+          subType: "cuti",
+          spvApproval: null,
+          managerApproval: null,
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("submissions").doc("pers-resubmit-3").update({
+          status: "diajukan",
+          rejectionNote: null,
+          subType: "lembur",
+          employeeName: "Rahmat Hidayat",
+          periodStart: "2026-09-10",
+          periodEnd: "2026-09-11",
+          spvApproval: null,
+          managerApproval: null,
+        })
+      );
+    });
+
+    it("allows an spv owner to resubmit a rejected personalia submission as izin (still within cuti/izin)", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("pers-resubmit-4").set({
+          requesterId: "uid-spv",
+          status: "perlu_revisi",
+          type: "personalia",
+          subType: "cuti",
+          spvApproval: null,
+          managerApproval: null,
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("pers-resubmit-4").update({
+          status: "diajukan",
+          rejectionNote: null,
+          subType: "izin",
+          employeeName: "Rahmat Hidayat",
+          periodStart: "2026-09-10",
+          periodEnd: "2026-09-11",
+          spvApproval: null,
+          managerApproval: null,
+        })
+      );
+    });
   });
 });
