@@ -5,7 +5,7 @@ const TYPE_LABEL: Record<"kendaraan" | "perlengkapan", string> = {
 
 const APPROVER_ROLE_LABEL: Record<"spv" | "management", string> = {
   spv: "AWS Supervisor",
-  management: "Management",
+  management: "Operational Manager",
 };
 
 export type SubmissionPdfItem = {

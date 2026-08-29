@@ -22,7 +22,7 @@ const ROLE_OPTIONS = [
   { value: "admin_cabang", label: "Admin Cabang" },
   { value: "snd", label: "SND" },
   { value: "spv", label: "AWS Supervisor" },
-  { value: "management", label: "Management" },
+  { value: "management", label: "Operational Manager" },
   { value: "superadmin", label: "Superadmin" },
 ] as const;
 
