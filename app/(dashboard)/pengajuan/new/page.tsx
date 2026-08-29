@@ -12,10 +12,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header/PageHeader";
 import { SignaturePad } from "@/components/signature-pad/SignaturePad";
 import { FileUpload } from "@/components/file-upload/FileUpload";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { submitSubmission } from "@/lib/submissions/submitSubmission";
+import { AlertCircle, FileText, Paperclip, PenLine, Plus, Trash2 } from "lucide-react";
 
 export default function NewPengajuanPage() {
   const router = useRouter();
@@ -158,46 +162,57 @@ export default function NewPengajuanPage() {
   }
 
   if (isLoadingResubmit) {
-    return (
-      <main className="mx-auto max-w-2xl p-6 text-sm text-muted-foreground">
-        Memuat data pengajuan...
-      </main>
-    );
+    return <div className="mx-auto max-w-3xl p-6 text-sm text-muted-foreground">Memuat data pengajuan...</div>;
   }
 
   if (resubmitError) {
-    return (
-      <main className="mx-auto max-w-2xl p-6 text-sm text-red-600">{resubmitError}</main>
-    );
+    return <div className="mx-auto max-w-3xl p-6 text-sm text-destructive">{resubmitError}</div>;
   }
 
   return (
-    <main className="mx-auto max-w-2xl space-y-6 p-6">
-      <h1 className="text-xl font-semibold">Buat Pengajuan</h1>
+    <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6">
+      <PageHeader
+        title={resubmitId ? "Revisi Pengajuan" : "Buat Pengajuan"}
+        description="Isi detail kendaraan atau perlengkapan yang ingin Anda ajukan."
+      />
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="space-y-1">
-          <Label htmlFor="type">Jenis Pengajuan</Label>
-          <select id="type" {...typeField} onChange={handleTypeChange} className="w-full rounded border p-2">
-            <option value="kendaraan">Kendaraan</option>
-            <option value="perlengkapan">Perlengkapan</option>
-          </select>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-4 w-4 text-primary" />
+              Detail Pengajuan
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="type">Jenis Pengajuan</Label>
+              <NativeSelect id="type" {...typeField} onChange={handleTypeChange}>
+                <option value="kendaraan">Kendaraan</option>
+                <option value="perlengkapan">Perlengkapan</option>
+              </NativeSelect>
+            </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="subType">Sub Jenis</Label>
-          <select id="subType" {...register("subType")} className="w-full rounded border p-2">
-            {subTypeByType[selectedType].map((st) => (
-              <option key={st} value={st}>
-                {st}
-              </option>
-            ))}
-          </select>
-          {errors.subType && <p className="text-sm text-red-600">{errors.subType.message}</p>}
-        </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="subType">Sub Jenis</Label>
+              <NativeSelect id="subType" {...register("subType")}>
+                {subTypeByType[selectedType].map((st) => (
+                  <option key={st} value={st}>
+                    {st}
+                  </option>
+                ))}
+              </NativeSelect>
+              {errors.subType && <p className="text-sm text-destructive">{errors.subType.message}</p>}
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Label>Item</Label>
+        <Card>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle className="text-base">Item</CardTitle>
+              <CardDescription>Daftar barang/layanan yang diajukan.</CardDescription>
+            </div>
             <Button
               type="button"
               variant="outline"
@@ -206,123 +221,158 @@ export default function NewPengajuanPage() {
                 append({ itemName: "", brandType: "", km: null, quantity: 1, unit: "", description: "" })
               }
             >
+              <Plus className="h-4 w-4" />
               Tambah Item
             </Button>
-          </div>
-          {fields.map((field, index) => {
-            const itemErrors = errors.items?.[index];
-            return (
-              <div key={field.id} className="grid grid-cols-2 gap-2 rounded border p-3">
-                <div className="space-y-1">
-                  <Input placeholder="Nama item" {...register(`items.${index}.itemName`)} />
-                  {itemErrors?.itemName && (
-                    <p className="text-sm text-red-600">{itemErrors.itemName.message}</p>
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Input placeholder="Merk/Tipe" {...register(`items.${index}.brandType`)} />
-                  {itemErrors?.brandType && (
-                    <p className="text-sm text-red-600">{itemErrors.brandType.message}</p>
-                  )}
-                </div>
-                {selectedType === "kendaraan" && (
-                  <div className="space-y-1">
-                    <Input
-                      type="number"
-                      placeholder="KM"
-                      {...register(`items.${index}.km`, {
-                        setValueAs: (v) => (v === "" ? null : Number(v)),
-                      })}
-                    />
-                    {itemErrors?.km && <p className="text-sm text-red-600">{itemErrors.km.message}</p>}
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {fields.map((field, index) => {
+              const itemErrors = errors.items?.[index];
+              return (
+                <div key={field.id} className="space-y-3 rounded-xl border bg-muted/30 p-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Input placeholder="Nama item" {...register(`items.${index}.itemName`)} />
+                      {itemErrors?.itemName && (
+                        <p className="text-sm text-destructive">{itemErrors.itemName.message}</p>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Input placeholder="Merk/Tipe" {...register(`items.${index}.brandType`)} />
+                      {itemErrors?.brandType && (
+                        <p className="text-sm text-destructive">{itemErrors.brandType.message}</p>
+                      )}
+                    </div>
+                    {selectedType === "kendaraan" && (
+                      <div className="space-y-1.5">
+                        <Input
+                          type="number"
+                          placeholder="KM"
+                          className="font-mono"
+                          {...register(`items.${index}.km`, {
+                            setValueAs: (v) => (v === "" ? null : Number(v)),
+                          })}
+                        />
+                        {itemErrors?.km && <p className="text-sm text-destructive">{itemErrors.km.message}</p>}
+                      </div>
+                    )}
+                    <div className="space-y-1.5">
+                      <Input
+                        type="number"
+                        placeholder="Jumlah"
+                        className="font-mono"
+                        {...register(`items.${index}.quantity`, { valueAsNumber: true })}
+                      />
+                      {itemErrors?.quantity && (
+                        <p className="text-sm text-destructive">{itemErrors.quantity.message}</p>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Input placeholder="Satuan" {...register(`items.${index}.unit`)} />
+                      {itemErrors?.unit && <p className="text-sm text-destructive">{itemErrors.unit.message}</p>}
+                    </div>
                   </div>
-                )}
-                <div className="space-y-1">
-                  <Input
-                    type="number"
-                    placeholder="Jumlah"
-                    {...register(`items.${index}.quantity`, { valueAsNumber: true })}
-                  />
-                  {itemErrors?.quantity && (
-                    <p className="text-sm text-red-600">{itemErrors.quantity.message}</p>
+                  <Textarea placeholder="Deskripsi" {...register(`items.${index}.description`)} />
+                  {fields.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => remove(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Hapus Item
+                    </Button>
                   )}
                 </div>
-                <div className="space-y-1">
-                  <Input placeholder="Satuan" {...register(`items.${index}.unit`)} />
-                  {itemErrors?.unit && <p className="text-sm text-red-600">{itemErrors.unit.message}</p>}
-                </div>
-                <Textarea placeholder="Deskripsi" {...register(`items.${index}.description`)} />
-                {fields.length > 1 && (
-                  <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)}>
-                    Hapus
-                  </Button>
-                )}
-              </div>
-            );
-          })}
-          {errors.items && !Array.isArray(errors.items) && (
-            <p className="text-sm text-red-600">{errors.items.message as string}</p>
-          )}
-        </div>
+              );
+            })}
+            {errors.items && !Array.isArray(errors.items) && (
+              <p className="text-sm text-destructive">{errors.items.message as string}</p>
+            )}
+          </CardContent>
+        </Card>
 
-        <div className="space-y-3">
-          <Label>Lampiran (opsional)</Label>
-          {attachmentFields.map((field, index) => (
-            <div key={field.id} className="flex items-center justify-between rounded border p-2 text-sm">
-              <span>{field.fileName}</span>
-              <Button type="button" variant="ghost" size="sm" onClick={() => removeAttachment(index)}>
-                Hapus
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Paperclip className="h-4 w-4 text-primary" />
+              Lampiran <span className="font-normal text-muted-foreground">(opsional)</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {attachmentFields.map((field, index) => (
+              <div key={field.id} className="flex items-center justify-between rounded-lg border p-2.5 text-sm">
+                <span className="truncate">{field.fileName}</span>
+                <Button type="button" variant="ghost" size="sm" onClick={() => removeAttachment(index)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            <FileUpload purpose="attachment" onUploaded={(file) => appendAttachment(file)} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <PenLine className="h-4 w-4 text-primary" />
+              Tanda Tangan
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={signatureMode === "gambar" ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleSignatureModeChange("gambar")}
+              >
+                Gambar
+              </Button>
+              <Button
+                type="button"
+                variant={signatureMode === "upload" ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleSignatureModeChange("upload")}
+              >
+                Upload File
               </Button>
             </div>
-          ))}
-          <FileUpload purpose="attachment" onUploaded={(file) => appendAttachment(file)} />
-        </div>
+            {signatureMode === "gambar" ? (
+              <SignaturePad onChange={(dataUrl) => setValue("requesterSignatureUrl", dataUrl ?? "")} />
+            ) : (
+              <>
+                <FileUpload
+                  purpose="signature"
+                  onUploaded={(file) => {
+                    setValue("requesterSignatureUrl", file.fileUrl);
+                    setSignatureFileName(file.fileName);
+                  }}
+                />
+                {signatureFileName && (
+                  <p className="text-sm text-muted-foreground">Berhasil diupload: {signatureFileName}</p>
+                )}
+              </>
+            )}
+            {errors.requesterSignatureUrl && (
+              <p className="text-sm text-destructive">Tanda tangan wajib diisi.</p>
+            )}
+          </CardContent>
+        </Card>
 
-        <div className="space-y-2">
-          <Label>Tanda Tangan</Label>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant={signatureMode === "gambar" ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleSignatureModeChange("gambar")}
-            >
-              Gambar
-            </Button>
-            <Button
-              type="button"
-              variant={signatureMode === "upload" ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleSignatureModeChange("upload")}
-            >
-              Upload File
-            </Button>
+        {serverError && (
+          <div className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{serverError}</span>
           </div>
-          {signatureMode === "gambar" ? (
-            <SignaturePad onChange={(dataUrl) => setValue("requesterSignatureUrl", dataUrl ?? "")} />
-          ) : (
-            <>
-              <FileUpload
-                purpose="signature"
-                onUploaded={(file) => {
-                  setValue("requesterSignatureUrl", file.fileUrl);
-                  setSignatureFileName(file.fileName);
-                }}
-              />
-              {signatureFileName && (
-                <p className="text-sm text-muted-foreground">Berhasil diupload: {signatureFileName}</p>
-              )}
-            </>
-          )}
-          {errors.requesterSignatureUrl && <p className="text-sm text-red-600">Tanda tangan wajib diisi.</p>}
-        </div>
+        )}
 
-        {serverError && <p className="text-sm text-red-600">{serverError}</p>}
-
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" disabled={isSubmitting} size="lg">
           {isSubmitting ? "Mengirim..." : "Kirim Pengajuan"}
         </Button>
       </form>
-    </main>
+    </div>
   );
 }

@@ -13,6 +13,10 @@ import { updateUser } from "@/lib/users/updateUser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header/PageHeader";
+import { AlertCircle } from "lucide-react";
 
 const ROLE_OPTIONS = [
   { value: "admin_cabang", label: "Admin Cabang" },
@@ -120,85 +124,99 @@ function EditUserContent() {
   }
 
   if (isLoadingUser) {
-    return <main className="mx-auto max-w-md p-6 text-sm text-muted-foreground">Memuat...</main>;
+    return <div className="mx-auto max-w-2xl p-6 text-sm text-muted-foreground">Memuat...</div>;
   }
 
   if (loadError) {
-    return <main className="mx-auto max-w-md p-6 text-sm text-red-600">{loadError}</main>;
+    return <div className="mx-auto max-w-2xl p-6 text-sm text-destructive">{loadError}</div>;
   }
 
   return (
-    <main className="mx-auto max-w-md space-y-8 p-6">
-      <div className="space-y-6">
-        <h1 className="text-xl font-semibold">Edit User{username ? ` (${username})` : ""}</h1>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-1">
-            <Label htmlFor="name">Nama</Label>
-            <Input id="name" {...register("name")} />
-            {errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
-          </div>
+    <div className="mx-auto max-w-2xl space-y-6 p-4 sm:p-6">
+      <PageHeader title={`Edit User${username ? ` — ${username}` : ""}`} description="Perbarui data akun pengguna." />
 
-          <div className="space-y-1">
-            <Label htmlFor="role">Role</Label>
-            <select id="role" {...roleField} onChange={handleRoleChange} className="w-full rounded border p-2">
-              {ROLE_OPTIONS.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {selectedRole === "admin_cabang" && (
-            <div className="space-y-1">
-              <Label htmlFor="branch">Cabang</Label>
-              <select id="branch" {...register("branch")} className="w-full rounded border p-2">
-                <option value="WHO">WHO</option>
-                <option value="WHP">WHP</option>
-              </select>
+      <Card>
+        <CardContent className="pt-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="name">Nama</Label>
+              <Input id="name" {...register("name")} />
+              {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
             </div>
-          )}
 
-          <div className="space-y-1">
-            <Label htmlFor="department">Departemen</Label>
-            <Input id="department" {...register("department")} />
-            {errors.department && <p className="text-sm text-red-600">{errors.department.message}</p>}
-          </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="role">Role</Label>
+                <NativeSelect id="role" {...roleField} onChange={handleRoleChange}>
+                  {ROLE_OPTIONS.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="position">Posisi</Label>
-            <Input id="position" {...register("position")} />
-            {errors.position && <p className="text-sm text-red-600">{errors.position.message}</p>}
-          </div>
+              {selectedRole === "admin_cabang" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="branch">Cabang</Label>
+                  <NativeSelect id="branch" {...register("branch")}>
+                    <option value="WHO">WHO</option>
+                    <option value="WHP">WHP</option>
+                  </NativeSelect>
+                </div>
+              )}
+            </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="email">Email (opsional)</Label>
-            <Input id="email" type="email" {...register("email", { setValueAs: (v) => (v === "" ? undefined : v) })} />
-            {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
-          </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="department">Departemen</Label>
+                <Input id="department" {...register("department")} />
+                {errors.department && <p className="text-sm text-destructive">{errors.department.message}</p>}
+              </div>
 
-          {serverError && <p className="text-sm text-red-600">{serverError}</p>}
+              <div className="space-y-1.5">
+                <Label htmlFor="position">Posisi</Label>
+                <Input id="position" {...register("position")} />
+                {errors.position && <p className="text-sm text-destructive">{errors.position.message}</p>}
+              </div>
+            </div>
 
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Menyimpan..." : "Simpan Perubahan"}
-          </Button>
-        </form>
-      </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email (opsional)</Label>
+              <Input id="email" type="email" {...register("email", { setValueAs: (v) => (v === "" ? undefined : v) })} />
+              {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+            </div>
 
-      <div className="space-y-2 border-t pt-6">
-        <h2 className="text-lg font-semibold">Reset Password</h2>
-        <p className="text-sm text-muted-foreground">
-          Reset password tidak bisa dilakukan lewat aplikasi ini. Gunakan tab Authentication di Firebase Console
-          untuk mereset password user.
-        </p>
-      </div>
-    </main>
+            {serverError && (
+              <div className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{serverError}</span>
+              </div>
+            )}
+
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Menyimpan..." : "Simpan Perubahan"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Reset Password</CardTitle>
+          <CardDescription>
+            Reset password tidak bisa dilakukan lewat aplikasi ini. Gunakan tab Authentication di Firebase Console
+            untuk mereset password user.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    </div>
   );
 }
 
 export default function EditUserPage() {
   return (
-    <Suspense fallback={<main className="mx-auto max-w-md p-6 text-sm text-muted-foreground">Memuat...</main>}>
+    <Suspense fallback={<div className="mx-auto max-w-2xl p-6 text-sm text-muted-foreground">Memuat...</div>}>
       <EditUserContent />
     </Suspense>
   );

@@ -8,9 +8,14 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { StatusBadge } from "@/components/status-badge/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header/PageHeader";
+import { EmptyState } from "@/components/empty-state/EmptyState";
 import { SignaturePad } from "@/components/signature-pad/SignaturePad";
 import { FileUpload } from "@/components/file-upload/FileUpload";
 import { reviewSubmission } from "@/lib/submissions/reviewSubmission";
+import { AlertCircle, Check, ClipboardCheck, X } from "lucide-react";
 
 type QueueRow = { id: string; submissionNumber: string; type: string; branch: string };
 
@@ -85,90 +90,110 @@ export default function PersetujuanPage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl space-y-4 p-6">
-      <h1 className="text-xl font-semibold">Antrian Persetujuan</h1>
-      <ul className="space-y-3">
-        {rows.map((row) => {
-          const mode = signatureModeBySubmission[row.id] ?? "gambar";
-          const hasSignature = !!signatureBySubmission[row.id];
-          return (
-            <li key={row.id} className="space-y-3 rounded border p-3">
-              <div className="flex items-center justify-between">
-                <span>
-                  {row.submissionNumber} — {row.type} ({row.branch})
-                </span>
-                <StatusBadge status="diajukan" />
-              </div>
-              <Textarea
-                placeholder="Catatan (wajib jika reject)"
-                value={noteBySubmission[row.id] ?? ""}
-                onChange={(e) => setNoteBySubmission((prev) => ({ ...prev, [row.id]: e.target.value }))}
-              />
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Tanda Tangan Approver (wajib untuk Setujui)</p>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={mode === "gambar" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handleSignatureModeChange(row.id, "gambar")}
-                  >
-                    Gambar
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={mode === "upload" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handleSignatureModeChange(row.id, "upload")}
-                  >
-                    Upload File
-                  </Button>
-                </div>
-                {mode === "gambar" ? (
-                  <SignaturePad
-                    onChange={(dataUrl) =>
-                      setSignatureBySubmission((prev) => ({ ...prev, [row.id]: dataUrl ?? "" }))
-                    }
-                  />
-                ) : (
-                  <FileUpload
-                    purpose="signature"
-                    onUploaded={(file) =>
-                      setSignatureBySubmission((prev) => ({ ...prev, [row.id]: file.fileUrl }))
-                    }
-                  />
-                )}
-              </div>
-              {actionErrorBySubmission[row.id] && (
-                <p className="text-sm text-red-600">{actionErrorBySubmission[row.id]}</p>
-              )}
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  disabled={busyId === row.id || !hasSignature || !appUser}
-                  onClick={() => handleDecision(row.id, "approve")}
-                >
-                  Setujui
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  disabled={busyId === row.id || !appUser}
-                  onClick={() => handleDecision(row.id, "reject")}
-                >
-                  Tolak
-                </Button>
-              </div>
-            </li>
-          );
-        })}
-        {listError && (
-          <li className="text-sm text-red-600">Gagal memuat antrian. Coba muat ulang halaman.</li>
-        )}
-        {!listError && rows.length === 0 && (
-          <li className="text-sm text-muted-foreground">Tidak ada pengajuan menunggu review.</li>
-        )}
-      </ul>
-    </main>
+    <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6">
+      <PageHeader
+        title="Antrian Persetujuan"
+        description="Tinjau pengajuan yang menunggu keputusan Anda sebagai AWS Supervisor / Management."
+      />
+
+      {listError ? (
+        <EmptyState
+          icon={AlertCircle}
+          variant="error"
+          title="Gagal memuat antrian"
+          description="Coba muat ulang halaman."
+        />
+      ) : rows.length === 0 ? (
+        <EmptyState icon={ClipboardCheck} title="Tidak ada pengajuan menunggu review." />
+      ) : (
+        <div className="space-y-4">
+          {rows.map((row) => {
+            const mode = signatureModeBySubmission[row.id] ?? "gambar";
+            const hasSignature = !!signatureBySubmission[row.id];
+            return (
+              <Card key={row.id}>
+                <CardHeader className="flex-row items-center justify-between space-y-0 border-b">
+                  <div>
+                    <p className="font-mono text-sm font-semibold">{row.submissionNumber}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {row.type} · {row.branch}
+                    </p>
+                  </div>
+                  <StatusBadge status="diajukan" />
+                </CardHeader>
+                <CardContent className="space-y-4 pt-6">
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`note-${row.id}`}>Catatan (wajib jika tolak)</Label>
+                    <Textarea
+                      id={`note-${row.id}`}
+                      placeholder="Tulis catatan revisi di sini..."
+                      value={noteBySubmission[row.id] ?? ""}
+                      onChange={(e) => setNoteBySubmission((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Tanda Tangan Approver (wajib untuk Setujui)</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={mode === "gambar" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleSignatureModeChange(row.id, "gambar")}
+                      >
+                        Gambar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={mode === "upload" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleSignatureModeChange(row.id, "upload")}
+                      >
+                        Upload File
+                      </Button>
+                    </div>
+                    {mode === "gambar" ? (
+                      <SignaturePad
+                        onChange={(dataUrl) =>
+                          setSignatureBySubmission((prev) => ({ ...prev, [row.id]: dataUrl ?? "" }))
+                        }
+                      />
+                    ) : (
+                      <FileUpload
+                        purpose="signature"
+                        onUploaded={(file) =>
+                          setSignatureBySubmission((prev) => ({ ...prev, [row.id]: file.fileUrl }))
+                        }
+                      />
+                    )}
+                  </div>
+                  {actionErrorBySubmission[row.id] && (
+                    <p className="text-sm text-destructive">{actionErrorBySubmission[row.id]}</p>
+                  )}
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      disabled={busyId === row.id || !hasSignature || !appUser}
+                      onClick={() => handleDecision(row.id, "approve")}
+                    >
+                      <Check className="h-4 w-4" />
+                      Setujui
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={busyId === row.id || !appUser}
+                      onClick={() => handleDecision(row.id, "reject")}
+                    >
+                      <X className="h-4 w-4" />
+                      Tolak
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }

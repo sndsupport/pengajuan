@@ -14,6 +14,9 @@ import { StatusBadge } from "@/components/status-badge/StatusBadge";
 import { SubmissionTimeline, StatusHistoryEntry } from "@/components/submission-timeline/SubmissionTimeline";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/empty-state/EmptyState";
+import { CheckCircle2, Copy, ExternalLink, FileWarning, ShieldAlert } from "lucide-react";
 
 type SubmissionDoc = DocumentData & { id: string };
 
@@ -131,100 +134,139 @@ function PengajuanDetailContent() {
 
   if (!id || error) {
     return (
-      <main className="p-6 text-sm text-red-600">
-        Pengajuan tidak ditemukan atau Anda tidak punya akses.
-      </main>
+      <div className="mx-auto max-w-2xl p-4 sm:p-6">
+        <EmptyState
+          icon={ShieldAlert}
+          variant="error"
+          title="Pengajuan tidak ditemukan"
+          description="Pengajuan tidak ditemukan atau Anda tidak punya akses untuk melihatnya."
+        />
+      </div>
     );
   }
 
   if (!submission) {
-    return <main className="p-6 text-sm text-muted-foreground">Memuat...</main>;
+    return <div className="p-6 text-sm text-muted-foreground">Memuat...</div>;
   }
 
   return (
-    <main className="mx-auto max-w-2xl space-y-6 p-6">
+    <div className="mx-auto max-w-2xl space-y-6 p-4 sm:p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{submission.submissionNumber}</h1>
+        <h2 className="font-mono text-xl font-bold tracking-tight">{submission.submissionNumber}</h2>
         <StatusBadge status={submission.status} />
       </div>
 
       {submission.status === "perlu_revisi" && (
-        <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm">
-          <p className="font-medium">Catatan revisi:</p>
-          <p>{submission.rejectionNote}</p>
-          <Link href={`/pengajuan/new?resubmit=${submission.id}`}>
-            <Button className="mt-2" size="sm">
-              Revisi & Ajukan Ulang
-            </Button>
-          </Link>
-        </div>
+        <Card className="border-amber-300 bg-amber-50">
+          <CardContent className="space-y-2 pt-6">
+            <p className="flex items-center gap-2 font-medium text-amber-900">
+              <FileWarning className="h-4 w-4" />
+              Catatan revisi
+            </p>
+            <p className="text-sm text-amber-900/90">{submission.rejectionNote}</p>
+            <Link href={`/pengajuan/new?resubmit=${submission.id}`}>
+              <Button className="mt-1" size="sm">
+                Revisi &amp; Ajukan Ulang
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
       )}
 
       {submission.status === "disetujui" && !submission.pdfUrl && appUser && (
-        <div className="space-y-3 rounded border p-3">
-          <p className="font-medium">PDF pengajuan belum berhasil dibuat.</p>
-          {pdfError && <p className="text-sm text-red-600">{pdfError}</p>}
-          <Button type="button" size="sm" disabled={generatingPdf} onClick={handleGeneratePdf}>
-            {generatingPdf ? "Memproses..." : "Coba Generate PDF"}
-          </Button>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">PDF pengajuan belum berhasil dibuat</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {pdfError && <p className="text-sm text-destructive">{pdfError}</p>}
+            <Button type="button" size="sm" disabled={generatingPdf} onClick={handleGeneratePdf}>
+              {generatingPdf ? "Memproses..." : "Coba Generate PDF"}
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       {submission.status === "siap_dikirim" && appUser && (
-        <div className="space-y-3 rounded border p-3">
-          <p className="font-medium">Kirim ke GA lewat WhatsApp</p>
-          <a href={submission.pdfUrl} target="_blank" rel="noreferrer" className="text-sm underline">
-            Lihat PDF
-          </a>
-          <Textarea
-            readOnly
-            rows={8}
-            value={buildWaTemplate(
-              {
-                submissionNumber: submission.submissionNumber,
-                type: submission.type,
-                subType: submission.subType,
-                branch: submission.branch,
-                pdfUrl: submission.pdfUrl,
-              },
-              appUser.name
-            )}
-          />
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={handleCopy}>
-              Salin Template
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Kirim ke GA lewat WhatsApp</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <a
+              href={submission.pdfUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+            >
+              Lihat PDF
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+            <Textarea
+              readOnly
+              rows={8}
+              className="font-mono text-xs"
+              value={buildWaTemplate(
+                {
+                  submissionNumber: submission.submissionNumber,
+                  type: submission.type,
+                  subType: submission.subType,
+                  branch: submission.branch,
+                  pdfUrl: submission.pdfUrl,
+                },
+                appUser.name
+              )}
+            />
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={handleCopy}>
+                <Copy className="h-4 w-4" />
+                Salin Template
+              </Button>
+              {copyFeedback && (
+                <span className="flex items-center gap-1 text-sm font-medium text-emerald-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Disalin!
+                </span>
+              )}
+            </div>
+            {copyError && <p className="text-sm text-destructive">{copyError}</p>}
+            {confirmError && <p className="text-sm text-destructive">{confirmError}</p>}
+            <Button type="button" size="sm" disabled={confirming} onClick={handleConfirm}>
+              {confirming ? "Memproses..." : "Konfirmasi Sudah Dikirim ke GA"}
             </Button>
-            {copyFeedback && <span className="text-sm text-green-600">Disalin!</span>}
-          </div>
-          {copyError && <p className="text-sm text-red-600">{copyError}</p>}
-          {confirmError && <p className="text-sm text-red-600">{confirmError}</p>}
-          <Button type="button" size="sm" disabled={confirming} onClick={handleConfirm}>
-            {confirming ? "Memproses..." : "Konfirmasi Sudah Dikirim ke GA"}
-          </Button>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {submission.status === "on_proses_ga" && appUser && (
-        <div className="space-y-3 rounded border p-3">
-          <p className="font-medium">Barang/layanan sudah diterima?</p>
-          {markDoneError && <p className="text-sm text-red-600">{markDoneError}</p>}
-          <Button type="button" size="sm" disabled={markingDone} onClick={handleMarkDone}>
-            {markingDone ? "Memproses..." : "Tandai Selesai"}
-          </Button>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Barang/layanan sudah diterima?</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {markDoneError && <p className="text-sm text-destructive">{markDoneError}</p>}
+            <Button type="button" size="sm" disabled={markingDone} onClick={handleMarkDone}>
+              {markingDone ? "Memproses..." : "Tandai Selesai"}
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
-      <div>
-        <h2 className="mb-2 font-medium">Riwayat Status</h2>
-        <SubmissionTimeline entries={history} />
-      </div>
-    </main>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Riwayat Status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SubmissionTimeline entries={history} />
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
 export default function PengajuanDetailPage() {
   return (
-    <Suspense fallback={<main className="p-6 text-sm text-muted-foreground">Memuat...</main>}>
+    <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Memuat...</div>}>
       <PengajuanDetailContent />
     </Suspense>
   );

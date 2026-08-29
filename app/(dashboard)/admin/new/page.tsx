@@ -11,6 +11,10 @@ import { createUser } from "@/lib/users/createUser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header/PageHeader";
+import { AlertCircle } from "lucide-react";
 
 const ROLE_OPTIONS = [
   { value: "admin_cabang", label: "Admin Cabang" },
@@ -77,76 +81,92 @@ export default function NewUserPage() {
   }
 
   return (
-    <main className="mx-auto max-w-md space-y-6 p-6">
-      <h1 className="text-xl font-semibold">Buat User</h1>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="space-y-1">
-          <Label htmlFor="name">Nama</Label>
-          <Input id="name" {...register("name")} />
-          {errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}
-        </div>
+    <div className="mx-auto max-w-2xl space-y-6 p-4 sm:p-6">
+      <PageHeader title="Buat User" description="Tambahkan akun pengguna baru untuk aplikasi ini." />
 
-        <div className="space-y-1">
-          <Label htmlFor="username">Username</Label>
-          <Input id="username" {...register("username")} />
-          {errors.username && <p className="text-sm text-red-600">{errors.username.message}</p>}
-        </div>
+      <Card>
+        <CardContent className="pt-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="name">Nama</Label>
+                <Input id="name" {...register("name")} />
+                {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+              </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="password">Password Awal</Label>
-          <Input id="password" type="password" {...register("password")} />
-          {errors.password && <p className="text-sm text-red-600">{errors.password.message}</p>}
-        </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="username">Username</Label>
+                <Input id="username" {...register("username")} />
+                {errors.username && <p className="text-sm text-destructive">{errors.username.message}</p>}
+              </div>
+            </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="role">Role</Label>
-          <select id="role" {...roleField} onChange={handleRoleChange} className="w-full rounded border p-2">
-            {ROLE_OPTIONS.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
-              </option>
-            ))}
-          </select>
-        </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="password">Password Awal</Label>
+              <Input id="password" type="password" {...register("password")} />
+              {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
+            </div>
 
-        {selectedRole === "admin_cabang" && (
-          <div className="space-y-1">
-            <Label htmlFor="branch">Cabang</Label>
-            <select id="branch" {...register("branch")} className="w-full rounded border p-2">
-              <option value="WHO">WHO</option>
-              <option value="WHP">WHP</option>
-            </select>
-          </div>
-        )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="role">Role</Label>
+                <NativeSelect id="role" {...roleField} onChange={handleRoleChange}>
+                  {ROLE_OPTIONS.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="department">Departemen</Label>
-          <Input id="department" {...register("department")} />
-          {errors.department && <p className="text-sm text-red-600">{errors.department.message}</p>}
-        </div>
+              {selectedRole === "admin_cabang" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="branch">Cabang</Label>
+                  <NativeSelect id="branch" {...register("branch")}>
+                    <option value="WHO">WHO</option>
+                    <option value="WHP">WHP</option>
+                  </NativeSelect>
+                </div>
+              )}
+            </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="position">Posisi</Label>
-          <Input id="position" {...register("position")} />
-          {errors.position && <p className="text-sm text-red-600">{errors.position.message}</p>}
-        </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="department">Departemen</Label>
+                <Input id="department" {...register("department")} />
+                {errors.department && <p className="text-sm text-destructive">{errors.department.message}</p>}
+              </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="email">Email (opsional)</Label>
-          <Input
-            id="email"
-            type="email"
-            {...register("email", { setValueAs: (v) => (v === "" ? undefined : v) })}
-          />
-          {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
-        </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="position">Posisi</Label>
+                <Input id="position" {...register("position")} />
+                {errors.position && <p className="text-sm text-destructive">{errors.position.message}</p>}
+              </div>
+            </div>
 
-        {serverError && <p className="text-sm text-red-600">{serverError}</p>}
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email (opsional)</Label>
+              <Input
+                id="email"
+                type="email"
+                {...register("email", { setValueAs: (v) => (v === "" ? undefined : v) })}
+              />
+              {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+            </div>
 
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Membuat..." : "Buat User"}
-        </Button>
-      </form>
-    </main>
+            {serverError && (
+              <div className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{serverError}</span>
+              </div>
+            )}
+
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Membuat..." : "Buat User"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

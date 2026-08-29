@@ -58,21 +58,24 @@ export function MonitoringRow({ submission }: { submission: MonitoringSubmission
   return (
     <TableRow>
       <TableCell>
-        <Link href={`/pengajuan/detail?id=${submission.id}`} className="underline">
+        <Link
+          href={`/pengajuan/detail?id=${submission.id}`}
+          className="font-mono text-sm font-medium text-primary hover:underline"
+        >
           {submission.submissionNumber}
         </Link>
       </TableCell>
       <TableCell>{requesterName}</TableCell>
       <TableCell>{submission.branch}</TableCell>
-      <TableCell>{submission.type}</TableCell>
+      <TableCell className="capitalize">{submission.type}</TableCell>
       <TableCell>
         <StatusBadge status={submission.status} />
       </TableCell>
-      <TableCell>{formatDuration(durations.diajukanToDisetujui)}</TableCell>
-      <TableCell>{formatDuration(durations.disetujuiToSiapDikirim)}</TableCell>
-      <TableCell>{formatDuration(durations.siapDikirimToOnProsesGa)}</TableCell>
-      <TableCell>{formatDuration(durations.onProsesGaToSelesai)}</TableCell>
-      <TableCell>{formatDuration(durations.total)}</TableCell>
+      <TableCell className="font-tabular font-mono text-sm">{formatDuration(durations.diajukanToDisetujui)}</TableCell>
+      <TableCell className="font-tabular font-mono text-sm">{formatDuration(durations.disetujuiToSiapDikirim)}</TableCell>
+      <TableCell className="font-tabular font-mono text-sm">{formatDuration(durations.siapDikirimToOnProsesGa)}</TableCell>
+      <TableCell className="font-tabular font-mono text-sm">{formatDuration(durations.onProsesGaToSelesai)}</TableCell>
+      <TableCell className="font-tabular font-mono text-sm font-semibold">{formatDuration(durations.total)}</TableCell>
     </TableRow>
   );
 }

@@ -7,13 +7,20 @@ import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { PageHeader } from "@/components/page-header/PageHeader";
+import { EmptyState } from "@/components/empty-state/EmptyState";
+import { ROLE_LABEL } from "@/components/app-shell/nav-config";
+import type { AppUser } from "@/lib/hooks/useAuth";
+import { AlertCircle, Pencil, Plus, Users } from "lucide-react";
 
 type UserRow = {
   id: string;
   name: string;
   username: string;
-  role: string;
+  role: AppUser["role"];
   branch: string | null;
   department: string;
   position: string;
@@ -56,47 +63,71 @@ export default function AdminUsersPage() {
   }, []);
 
   return (
-    <main className="mx-auto max-w-3xl space-y-4 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Manajemen User</h1>
-        <Button asChild>
-          <Link href="/admin/new">Buat User</Link>
-        </Button>
-      </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nama</TableHead>
-            <TableHead>Username</TableHead>
-            <TableHead>Role</TableHead>
-            <TableHead>Cabang</TableHead>
-            <TableHead>Departemen</TableHead>
-            <TableHead>Posisi</TableHead>
-            <TableHead />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell>{row.name}</TableCell>
-              <TableCell>{row.username}</TableCell>
-              <TableCell>{row.role}</TableCell>
-              <TableCell>{row.branch ?? "-"}</TableCell>
-              <TableCell>{row.department}</TableCell>
-              <TableCell>{row.position}</TableCell>
-              <TableCell>
-                <Link href={`/admin/edit?uid=${row.id}`} className="text-sm underline">
-                  Edit
-                </Link>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      {listError && <p className="text-sm text-red-600">Gagal memuat daftar user.</p>}
-      {!listError && rows.length === 0 && (
-        <p className="text-sm text-muted-foreground">Belum ada user.</p>
+    <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
+      <PageHeader
+        title="Manajemen User"
+        description="Kelola akun pengguna aplikasi: admin cabang, SND, supervisor, management, dan superadmin."
+        actions={
+          <Button asChild>
+            <Link href="/admin/new">
+              <Plus className="h-4 w-4" />
+              Buat User
+            </Link>
+          </Button>
+        }
+      />
+
+      {listError ? (
+        <EmptyState
+          icon={AlertCircle}
+          variant="error"
+          title="Gagal memuat daftar user"
+          description="Coba muat ulang halaman."
+        />
+      ) : rows.length === 0 ? (
+        <EmptyState icon={Users} title="Belum ada user" description="Klik &quot;Buat User&quot; untuk menambahkan akun baru." />
+      ) : (
+        <Card className="overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Nama</TableHead>
+                <TableHead>Username</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Cabang</TableHead>
+                <TableHead>Departemen</TableHead>
+                <TableHead>Posisi</TableHead>
+                <TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell className="font-medium">{row.name}</TableCell>
+                  <TableCell className="font-mono text-sm text-muted-foreground">{row.username}</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className="font-medium">
+                      {ROLE_LABEL[row.role] ?? row.role}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{row.branch ?? "-"}</TableCell>
+                  <TableCell>{row.department}</TableCell>
+                  <TableCell>{row.position}</TableCell>
+                  <TableCell>
+                    <Link
+                      href={`/admin/edit?uid=${row.id}`}
+                      className="inline-flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      aria-label={`Edit ${row.name}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
       )}
-    </main>
+    </div>
   );
 }
