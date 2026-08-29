@@ -7,7 +7,14 @@ import { z } from "zod";
 import { useRouter, useSearchParams } from "next/navigation";
 import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
-import { createSubmissionSchema, CreateSubmissionInput, subTypeByType } from "@/lib/schemas/submission";
+import {
+  createSubmissionSchema,
+  CreateSubmissionInput,
+  subTypeByType,
+  createPersonaliaSubmissionSchema,
+  CreatePersonaliaSubmissionInput,
+  PERSONALIA_SUBTYPE_LABEL,
+} from "@/lib/schemas/submission";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,13 +26,48 @@ import { SignaturePad } from "@/components/signature-pad/SignaturePad";
 import { FileUpload } from "@/components/file-upload/FileUpload";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { submitSubmission } from "@/lib/submissions/submitSubmission";
+import { submitPersonaliaSubmission } from "@/lib/submissions/submitPersonaliaSubmission";
+import type { AppUser } from "@/lib/hooks/useAuth";
 import { AlertCircle, FileText, Paperclip, PenLine, Plus, Trash2 } from "lucide-react";
+
+type OperationalType = keyof typeof subTypeByType;
+type Category = OperationalType | "lembur" | "cuti" | "izin";
+
+const CATEGORY_OPTIONS: { value: Category; label: string }[] = [
+  { value: "kendaraan", label: "Kendaraan" },
+  { value: "perlengkapan", label: "Perlengkapan" },
+  { value: "gedung_fasilitas", label: "Gedung & Fasilitas" },
+  { value: "lembur", label: "Lembur" },
+  { value: "cuti", label: "Cuti" },
+  { value: "izin", label: "Izin" },
+];
+
+const PERSONALIA_ALLOWED_ROLES: Record<"lembur" | "cuti" | "izin", AppUser["role"][]> = {
+  lembur: ["admin_cabang", "snd"],
+  cuti: ["admin_cabang", "snd", "spv"],
+  izin: ["admin_cabang", "snd", "spv"],
+};
+
+function categoryOptionsForRole(role: AppUser["role"] | undefined): typeof CATEGORY_OPTIONS {
+  if (!role) return CATEGORY_OPTIONS;
+  return CATEGORY_OPTIONS.filter((opt) => {
+    if (opt.value === "lembur" || opt.value === "cuti" || opt.value === "izin") {
+      return PERSONALIA_ALLOWED_ROLES[opt.value].includes(role);
+    }
+    return true;
+  });
+}
+
+function isPersonaliaCategory(category: Category): category is "lembur" | "cuti" | "izin" {
+  return category === "lembur" || category === "cuti" || category === "izin";
+}
 
 export default function NewPengajuanPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { appUser } = useAuth();
   const resubmitId = searchParams.get("resubmit") ?? undefined;
+  const [category, setCategory] = useState<Category>("kendaraan");
   const [serverError, setServerError] = useState<string | null>(null);
   const [isLoadingResubmit, setIsLoadingResubmit] = useState(!!resubmitId);
   const [resubmitError, setResubmitError] = useState<string | null>(null);
@@ -52,25 +94,47 @@ export default function NewPengajuanPage() {
     },
   });
 
+  const {
+    register: registerPersonalia,
+    handleSubmit: handleSubmitPersonalia,
+    setValue: setValuePersonalia,
+    watch: watchPersonalia,
+    reset: resetPersonalia,
+    formState: { errors: personaliaErrors, isSubmitting: isSubmittingPersonalia },
+  } = useForm<z.input<typeof createPersonaliaSubmissionSchema>, unknown, CreatePersonaliaSubmissionInput>({
+    resolver: zodResolver(createPersonaliaSubmissionSchema),
+    defaultValues: {
+      submissionId: resubmitId,
+      subType: "cuti",
+      employeeName: "",
+      periodStart: "",
+      periodEnd: "",
+    },
+  });
+
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
   const {
     fields: attachmentFields,
     append: appendAttachment,
     remove: removeAttachment,
   } = useFieldArray({ control, name: "attachments" });
-  const selectedType = watch("type");
+  // createSubmissionSchema's "type" field is typed against the full
+  // submissionTypeSchema enum (which also includes "personalia", since that's
+  // a valid `submissions.type` value in Firestore for the separate personalia
+  // form below). This operational branch's category switcher only ever calls
+  // setValue("type", ...) with an operational category, so the cast here is
+  // safe — it just narrows back down to the keys subTypeByType actually has.
+  const selectedType = watch("type") as OperationalType;
   const typeField = register("type");
+  const personaliaAttachmentName = watchPersonalia("attachment")?.fileName;
 
-  // When the user changes "Jenis Pengajuan" via the dropdown, default subType
-  // to the first valid option for the new type. This is wired as an onChange
-  // handler (rather than a useEffect on the watched value) specifically so it
-  // only fires on user interaction — a useEffect keyed on `selectedType` would
-  // also fire right after `reset()` populates the resubmit data below, and
-  // clobber the freshly-loaded subType with the default.
-  function handleTypeChange(event: React.ChangeEvent<HTMLSelectElement>) {
-    typeField.onChange(event);
-    const nextType = event.target.value as CreateSubmissionInput["type"];
-    setValue("subType", subTypeByType[nextType][0]);
+  function handleCategoryChange(event: React.ChangeEvent<HTMLSelectElement>) {
+    const nextCategory = event.target.value as Category;
+    setCategory(nextCategory);
+    if (!isPersonaliaCategory(nextCategory)) {
+      setValue("type", nextCategory);
+      setValue("subType", subTypeByType[nextCategory][0]);
+    }
   }
 
   function handleSignatureModeChange(mode: "gambar" | "upload") {
@@ -93,6 +157,30 @@ export default function NewPengajuanPage() {
           throw new Error("Pengajuan tidak ditemukan.");
         }
         const submissionData = submissionSnap.data();
+
+        if (submissionData?.type === "personalia") {
+          const attachmentsSnap = await getDocs(collection(db, "submissions", id, "attachments"));
+          const firstAttachment = attachmentsSnap.docs[0]?.data();
+          if (cancelled) return;
+          setCategory(submissionData.subType as Category);
+          resetPersonalia({
+            submissionId: id,
+            subType: submissionData.subType,
+            employeeName: submissionData.employeeName ?? "",
+            periodStart: submissionData.periodStart ?? "",
+            periodEnd: submissionData.periodEnd ?? "",
+            attachment: firstAttachment
+              ? {
+                  fileId: firstAttachment.fileId,
+                  fileUrl: firstAttachment.fileUrl,
+                  fileName: firstAttachment.fileName,
+                  fileType: firstAttachment.fileType,
+                }
+              : undefined,
+          });
+          return;
+        }
+
         const itemsSnap = await getDocs(collection(db, "submissions", id, "items"));
         const items = itemsSnap.docs.map((itemDoc) => {
           const data = itemDoc.data();
@@ -118,6 +206,7 @@ export default function NewPengajuanPage() {
 
         if (cancelled) return;
 
+        setCategory((submissionData?.type as Category) ?? "kendaraan");
         reset({
           submissionId: id,
           type: submissionData?.type ?? "kendaraan",
@@ -148,13 +237,24 @@ export default function NewPengajuanPage() {
     return () => {
       cancelled = true;
     };
-  }, [resubmitId, reset]);
+  }, [resubmitId, reset, resetPersonalia]);
 
   async function onSubmit(data: CreateSubmissionInput) {
     if (!appUser) return;
     setServerError(null);
     try {
       const result = await submitSubmission(data, appUser);
+      router.push(`/pengajuan/detail?id=${result.submissionId}`);
+    } catch (err) {
+      setServerError(err instanceof Error ? err.message : "Gagal mengirim pengajuan.");
+    }
+  }
+
+  async function onSubmitPersonalia(data: CreatePersonaliaSubmissionInput) {
+    if (!appUser) return;
+    setServerError(null);
+    try {
+      const result = await submitPersonaliaSubmission(data, appUser);
       router.push(`/pengajuan/detail?id=${result.submissionId}`);
     } catch (err) {
       setServerError(err instanceof Error ? err.message : "Gagal mengirim pengajuan.");
@@ -173,28 +273,110 @@ export default function NewPengajuanPage() {
     <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6">
       <PageHeader
         title={resubmitId ? "Revisi Pengajuan" : "Buat Pengajuan"}
-        description="Isi detail kendaraan atau perlengkapan yang ingin Anda ajukan."
+        description="Isi detail kendaraan, perlengkapan, gedung & fasilitas, atau lembur/cuti/izin yang ingin Anda ajukan."
       />
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <FileText className="h-4 w-4 text-primary" />
-              Detail Pengajuan
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="type">Jenis Pengajuan</Label>
-              <NativeSelect id="type" {...typeField} onChange={handleTypeChange}>
-                <option value="kendaraan">Kendaraan</option>
-                <option value="perlengkapan">Perlengkapan</option>
-              </NativeSelect>
-            </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Kategori Pengajuan</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <NativeSelect value={category} onChange={handleCategoryChange} disabled={!!resubmitId}>
+            {categoryOptionsForRole(appUser?.role).map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </NativeSelect>
+        </CardContent>
+      </Card>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="subType">Sub Jenis</Label>
+      {isPersonaliaCategory(category) ? (
+        <form onSubmit={handleSubmitPersonalia(onSubmitPersonalia)} className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-4 w-4 text-primary" />
+                Detail Pengajuan {PERSONALIA_SUBTYPE_LABEL[category]}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="employeeName">Nama Karyawan</Label>
+                <Input id="employeeName" {...registerPersonalia("employeeName")} />
+                {personaliaErrors.employeeName && (
+                  <p className="text-sm text-destructive">{personaliaErrors.employeeName.message}</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="periodStart">Tanggal Mulai</Label>
+                <Input id="periodStart" type="date" {...registerPersonalia("periodStart")} />
+                {personaliaErrors.periodStart && (
+                  <p className="text-sm text-destructive">{personaliaErrors.periodStart.message}</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="periodEnd">Tanggal Selesai</Label>
+                <Input id="periodEnd" type="date" {...registerPersonalia("periodEnd")} />
+                {personaliaErrors.periodEnd && (
+                  <p className="text-sm text-destructive">{personaliaErrors.periodEnd.message}</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Paperclip className="h-4 w-4 text-primary" />
+                Dokumen Form {PERSONALIA_SUBTYPE_LABEL[category]}
+              </CardTitle>
+              <CardDescription>Upload form yang sudah diisi & ditandatangani manual (PDF).</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {personaliaAttachmentName ? (
+                <div className="flex items-center justify-between rounded-lg border p-2.5 text-sm">
+                  <span className="truncate">{personaliaAttachmentName}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setValuePersonalia("attachment", undefined as never)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <FileUpload purpose="attachment" onUploaded={(file) => setValuePersonalia("attachment", file)} />
+              )}
+              {personaliaErrors.attachment && (
+                <p className="text-sm text-destructive">Dokumen PDF wajib diupload.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {serverError && (
+            <div className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{serverError}</span>
+            </div>
+          )}
+
+          <Button type="submit" disabled={isSubmittingPersonalia} size="lg">
+            {isSubmittingPersonalia ? "Mengirim..." : "Kirim Pengajuan"}
+          </Button>
+        </form>
+      ) : (
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-4 w-4 text-primary" />
+                Sub Jenis
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <input type="hidden" {...typeField} />
               <NativeSelect id="subType" {...register("subType")}>
                 {subTypeByType[selectedType].map((st) => (
                   <option key={st} value={st}>
@@ -203,176 +385,176 @@ export default function NewPengajuanPage() {
                 ))}
               </NativeSelect>
               {errors.subType && <p className="text-sm text-destructive">{errors.subType.message}</p>}
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <div>
-              <CardTitle className="text-base">Item</CardTitle>
-              <CardDescription>Daftar barang/layanan yang diajukan.</CardDescription>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                append({ itemName: "", brandType: "", km: null, quantity: 1, unit: "", description: "" })
-              }
-            >
-              <Plus className="h-4 w-4" />
-              Tambah Item
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {fields.map((field, index) => {
-              const itemErrors = errors.items?.[index];
-              return (
-                <div key={field.id} className="space-y-3 rounded-xl border bg-muted/30 p-4">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <Input placeholder="Nama item" {...register(`items.${index}.itemName`)} />
-                      {itemErrors?.itemName && (
-                        <p className="text-sm text-destructive">{itemErrors.itemName.message}</p>
+          <Card>
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <div>
+                <CardTitle className="text-base">Item</CardTitle>
+                <CardDescription>Daftar barang/layanan yang diajukan.</CardDescription>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  append({ itemName: "", brandType: "", km: null, quantity: 1, unit: "", description: "" })
+                }
+              >
+                <Plus className="h-4 w-4" />
+                Tambah Item
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {fields.map((field, index) => {
+                const itemErrors = errors.items?.[index];
+                return (
+                  <div key={field.id} className="space-y-3 rounded-xl border bg-muted/30 p-4">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Input placeholder="Nama item" {...register(`items.${index}.itemName`)} />
+                        {itemErrors?.itemName && (
+                          <p className="text-sm text-destructive">{itemErrors.itemName.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <Input placeholder="Merk/Tipe" {...register(`items.${index}.brandType`)} />
+                        {itemErrors?.brandType && (
+                          <p className="text-sm text-destructive">{itemErrors.brandType.message}</p>
+                        )}
+                      </div>
+                      {selectedType === "kendaraan" && (
+                        <div className="space-y-1.5">
+                          <Input
+                            type="number"
+                            placeholder="KM"
+                            className="font-mono"
+                            {...register(`items.${index}.km`, {
+                              setValueAs: (v) => (v === "" ? null : Number(v)),
+                            })}
+                          />
+                          {itemErrors?.km && <p className="text-sm text-destructive">{itemErrors.km.message}</p>}
+                        </div>
                       )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Input placeholder="Merk/Tipe" {...register(`items.${index}.brandType`)} />
-                      {itemErrors?.brandType && (
-                        <p className="text-sm text-destructive">{itemErrors.brandType.message}</p>
-                      )}
-                    </div>
-                    {selectedType === "kendaraan" && (
                       <div className="space-y-1.5">
                         <Input
                           type="number"
-                          placeholder="KM"
+                          placeholder="Jumlah"
                           className="font-mono"
-                          {...register(`items.${index}.km`, {
-                            setValueAs: (v) => (v === "" ? null : Number(v)),
-                          })}
+                          {...register(`items.${index}.quantity`, { valueAsNumber: true })}
                         />
-                        {itemErrors?.km && <p className="text-sm text-destructive">{itemErrors.km.message}</p>}
+                        {itemErrors?.quantity && (
+                          <p className="text-sm text-destructive">{itemErrors.quantity.message}</p>
+                        )}
                       </div>
+                      <div className="space-y-1.5">
+                        <Input placeholder="Satuan" {...register(`items.${index}.unit`)} />
+                        {itemErrors?.unit && <p className="text-sm text-destructive">{itemErrors.unit.message}</p>}
+                      </div>
+                    </div>
+                    <Textarea placeholder="Deskripsi" {...register(`items.${index}.description`)} />
+                    {fields.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => remove(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Hapus Item
+                      </Button>
                     )}
-                    <div className="space-y-1.5">
-                      <Input
-                        type="number"
-                        placeholder="Jumlah"
-                        className="font-mono"
-                        {...register(`items.${index}.quantity`, { valueAsNumber: true })}
-                      />
-                      {itemErrors?.quantity && (
-                        <p className="text-sm text-destructive">{itemErrors.quantity.message}</p>
-                      )}
-                    </div>
-                    <div className="space-y-1.5">
-                      <Input placeholder="Satuan" {...register(`items.${index}.unit`)} />
-                      {itemErrors?.unit && <p className="text-sm text-destructive">{itemErrors.unit.message}</p>}
-                    </div>
                   </div>
-                  <Textarea placeholder="Deskripsi" {...register(`items.${index}.description`)} />
-                  {fields.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => remove(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Hapus Item
-                    </Button>
-                  )}
-                </div>
-              );
-            })}
-            {errors.items && !Array.isArray(errors.items) && (
-              <p className="text-sm text-destructive">{errors.items.message as string}</p>
-            )}
-          </CardContent>
-        </Card>
+                );
+              })}
+              {errors.items && !Array.isArray(errors.items) && (
+                <p className="text-sm text-destructive">{errors.items.message as string}</p>
+              )}
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Paperclip className="h-4 w-4 text-primary" />
-              Lampiran <span className="font-normal text-muted-foreground">(opsional)</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {attachmentFields.map((field, index) => (
-              <div key={field.id} className="flex items-center justify-between rounded-lg border p-2.5 text-sm">
-                <span className="truncate">{field.fileName}</span>
-                <Button type="button" variant="ghost" size="sm" onClick={() => removeAttachment(index)}>
-                  <Trash2 className="h-4 w-4" />
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Paperclip className="h-4 w-4 text-primary" />
+                Lampiran <span className="font-normal text-muted-foreground">(opsional)</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {attachmentFields.map((field, index) => (
+                <div key={field.id} className="flex items-center justify-between rounded-lg border p-2.5 text-sm">
+                  <span className="truncate">{field.fileName}</span>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => removeAttachment(index)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <FileUpload purpose="attachment" onUploaded={(file) => appendAttachment(file)} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <PenLine className="h-4 w-4 text-primary" />
+                Tanda Tangan
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={signatureMode === "gambar" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleSignatureModeChange("gambar")}
+                >
+                  Gambar
+                </Button>
+                <Button
+                  type="button"
+                  variant={signatureMode === "upload" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleSignatureModeChange("upload")}
+                >
+                  Upload File
                 </Button>
               </div>
-            ))}
-            <FileUpload purpose="attachment" onUploaded={(file) => appendAttachment(file)} />
-          </CardContent>
-        </Card>
+              {signatureMode === "gambar" ? (
+                <SignaturePad onChange={(dataUrl) => setValue("requesterSignatureUrl", dataUrl ?? "")} />
+              ) : (
+                <>
+                  <FileUpload
+                    purpose="signature"
+                    onUploaded={(file) => {
+                      setValue("requesterSignatureUrl", file.fileUrl);
+                      setSignatureFileName(file.fileName);
+                    }}
+                  />
+                  {signatureFileName && (
+                    <p className="text-sm text-muted-foreground">Berhasil diupload: {signatureFileName}</p>
+                  )}
+                </>
+              )}
+              {errors.requesterSignatureUrl && (
+                <p className="text-sm text-destructive">Tanda tangan wajib diisi.</p>
+              )}
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <PenLine className="h-4 w-4 text-primary" />
-              Tanda Tangan
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={signatureMode === "gambar" ? "default" : "outline"}
-                size="sm"
-                onClick={() => handleSignatureModeChange("gambar")}
-              >
-                Gambar
-              </Button>
-              <Button
-                type="button"
-                variant={signatureMode === "upload" ? "default" : "outline"}
-                size="sm"
-                onClick={() => handleSignatureModeChange("upload")}
-              >
-                Upload File
-              </Button>
+          {serverError && (
+            <div className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{serverError}</span>
             </div>
-            {signatureMode === "gambar" ? (
-              <SignaturePad onChange={(dataUrl) => setValue("requesterSignatureUrl", dataUrl ?? "")} />
-            ) : (
-              <>
-                <FileUpload
-                  purpose="signature"
-                  onUploaded={(file) => {
-                    setValue("requesterSignatureUrl", file.fileUrl);
-                    setSignatureFileName(file.fileName);
-                  }}
-                />
-                {signatureFileName && (
-                  <p className="text-sm text-muted-foreground">Berhasil diupload: {signatureFileName}</p>
-                )}
-              </>
-            )}
-            {errors.requesterSignatureUrl && (
-              <p className="text-sm text-destructive">Tanda tangan wajib diisi.</p>
-            )}
-          </CardContent>
-        </Card>
+          )}
 
-        {serverError && (
-          <div className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>{serverError}</span>
-          </div>
-        )}
-
-        <Button type="submit" disabled={isSubmitting} size="lg">
-          {isSubmitting ? "Mengirim..." : "Kirim Pengajuan"}
-        </Button>
-      </form>
+          <Button type="submit" disabled={isSubmitting} size="lg">
+            {isSubmitting ? "Mengirim..." : "Kirim Pengajuan"}
+          </Button>
+        </form>
+      )}
     </div>
   );
 }
