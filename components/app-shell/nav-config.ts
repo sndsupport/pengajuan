@@ -14,7 +14,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/pengajuan",
     label: "Pengajuan Saya",
     icon: FileStack,
-    roles: ["admin_cabang", "snd"],
+    roles: ["admin_cabang", "snd", "spv"],
   },
   {
     href: "/persetujuan",

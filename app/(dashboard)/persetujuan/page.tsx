@@ -16,6 +16,7 @@ import { SignaturePad } from "@/components/signature-pad/SignaturePad";
 import { FileUpload } from "@/components/file-upload/FileUpload";
 import { reviewSubmission } from "@/lib/submissions/reviewSubmission";
 import { AlertCircle, Check, ClipboardCheck, X } from "lucide-react";
+import { TYPE_LABEL } from "@/lib/schemas/submission";
 
 type QueueRow = { id: string; submissionNumber: string; type: string; branch: string };
 
@@ -116,7 +117,7 @@ export default function PersetujuanPage() {
                   <div>
                     <p className="font-mono text-sm font-semibold">{row.submissionNumber}</p>
                     <p className="text-sm text-muted-foreground">
-                      {row.type} · {row.branch}
+                      {TYPE_LABEL[row.type] ?? row.type} · {row.branch}
                     </p>
                   </div>
                   <StatusBadge status="diajukan" />
