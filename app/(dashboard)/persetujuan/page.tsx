@@ -93,7 +93,7 @@ export default function PersetujuanPage() {
     <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6">
       <PageHeader
         title="Antrian Persetujuan"
-        description="Tinjau pengajuan yang menunggu keputusan Anda sebagai AWS Supervisor / Management."
+        description="Tinjau pengajuan yang menunggu keputusan Anda sebagai AWS Supervisor / Operational Manager."
       />
 
       {listError ? (
