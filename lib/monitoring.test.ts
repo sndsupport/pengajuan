@@ -77,3 +77,32 @@ describe("formatDuration", () => {
     expect(formatDuration(2 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000)).toBe("2h 3j");
   });
 });
+
+describe("computeStageDurations — personalia (stages skipped entirely)", () => {
+  it("returns null for disetujui/siap_dikirim/on_proses_ga stages when only diajukan and selesai exist", () => {
+    const now = new Date("2026-09-05T00:00:00Z");
+    const entries = [
+      { status: "diajukan", timestamp: new Date("2026-09-01T00:00:00Z") },
+      { status: "selesai", timestamp: new Date("2026-09-03T00:00:00Z") },
+    ];
+    const durations = computeStageDurations(entries, now);
+    expect(durations.diajukanToDisetujui).toBeNull();
+    expect(durations.disetujuiToSiapDikirim).toBeNull();
+    expect(durations.siapDikirimToOnProsesGa).toBeNull();
+    expect(durations.onProsesGaToSelesai).toBeNull();
+  });
+
+  it("still computes total duration end to end", () => {
+    const now = new Date("2026-09-05T00:00:00Z");
+    const entries = [
+      { status: "diajukan", timestamp: new Date("2026-09-01T00:00:00Z") },
+      { status: "selesai", timestamp: new Date("2026-09-03T00:00:00Z") },
+    ];
+    const durations = computeStageDurations(entries, now);
+    expect(durations.total).toBe(new Date("2026-09-03T00:00:00Z").getTime() - new Date("2026-09-01T00:00:00Z").getTime());
+  });
+
+  it("formatDuration renders null stages as a dash", () => {
+    expect(formatDuration(null)).toBe("-");
+  });
+});
