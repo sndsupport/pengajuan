@@ -81,7 +81,7 @@ function PengajuanDetailContent() {
       setPersonaliaAttachmentUrl(snap.docs[0]?.data().fileUrl ?? null);
     });
     return unsub;
-  }, [id, submission]);
+  }, [id, submission?.type]);
 
   async function handleCopy() {
     if (!submission || !appUser) return;
