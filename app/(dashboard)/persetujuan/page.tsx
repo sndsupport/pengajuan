@@ -15,10 +15,11 @@ import { EmptyState } from "@/components/empty-state/EmptyState";
 import { SignaturePad } from "@/components/signature-pad/SignaturePad";
 import { FileUpload } from "@/components/file-upload/FileUpload";
 import { reviewSubmission } from "@/lib/submissions/reviewSubmission";
+import { reviewPersonaliaSubmission } from "@/lib/submissions/reviewPersonaliaSubmission";
 import { AlertCircle, Check, ClipboardCheck, X } from "lucide-react";
 import { TYPE_LABEL } from "@/lib/schemas/submission";
 
-type QueueRow = { id: string; submissionNumber: string; type: string; branch: string };
+type QueueRow = { id: string; submissionNumber: string; type: string; subType: string; branch: string };
 
 export default function PersetujuanPage() {
   const { appUser, loading } = useAuth();
@@ -51,6 +52,7 @@ export default function PersetujuanPage() {
             id: d.id,
             submissionNumber: d.data().submissionNumber,
             type: d.data().type,
+            subType: d.data().subType,
             branch: d.data().branch,
           }))
         );
@@ -90,6 +92,29 @@ export default function PersetujuanPage() {
     }
   }
 
+  async function handlePersonaliaDecision(submissionId: string, decision: "approve" | "reject") {
+    if (!appUser) return;
+    setBusyId(submissionId);
+    setActionErrorBySubmission((prev) => ({ ...prev, [submissionId]: "" }));
+    try {
+      await reviewPersonaliaSubmission(
+        {
+          submissionId,
+          decision,
+          rejectionNote: noteBySubmission[submissionId],
+        },
+        appUser
+      );
+    } catch (err) {
+      setActionErrorBySubmission((prev) => ({
+        ...prev,
+        [submissionId]: err instanceof Error ? err.message : "Gagal memproses review.",
+      }));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6">
       <PageHeader
@@ -109,6 +134,55 @@ export default function PersetujuanPage() {
       ) : (
         <div className="space-y-4">
           {rows.map((row) => {
+            if (row.type === "personalia") {
+              return (
+                <Card key={row.id}>
+                  <CardHeader className="flex-row items-center justify-between space-y-0 border-b">
+                    <div>
+                      <p className="font-mono text-sm font-semibold">{row.submissionNumber}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {TYPE_LABEL[row.type] ?? row.type} · {row.branch}
+                      </p>
+                    </div>
+                    <StatusBadge status="diajukan" />
+                  </CardHeader>
+                  <CardContent className="space-y-4 pt-6">
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`note-${row.id}`}>Catatan (wajib jika tolak)</Label>
+                      <Textarea
+                        id={`note-${row.id}`}
+                        placeholder="Tulis catatan revisi di sini..."
+                        value={noteBySubmission[row.id] ?? ""}
+                        onChange={(e) => setNoteBySubmission((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                      />
+                    </div>
+                    {actionErrorBySubmission[row.id] && (
+                      <p className="text-sm text-destructive">{actionErrorBySubmission[row.id]}</p>
+                    )}
+                    <div className="flex gap-2 pt-1">
+                      <Button
+                        size="sm"
+                        disabled={busyId === row.id || !appUser}
+                        onClick={() => handlePersonaliaDecision(row.id, "approve")}
+                      >
+                        <Check className="h-4 w-4" />
+                        Setujui
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={busyId === row.id || !appUser}
+                        onClick={() => handlePersonaliaDecision(row.id, "reject")}
+                      >
+                        <X className="h-4 w-4" />
+                        Tolak
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            }
+
             const mode = signatureModeBySubmission[row.id] ?? "gambar";
             const hasSignature = !!signatureBySubmission[row.id];
             return (
