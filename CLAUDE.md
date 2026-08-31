@@ -14,9 +14,11 @@ Aplikasi internal untuk PT Tridaya Sinergi Indonesia. Admin cabang (WHO, WHP) da
 | --- | --- | --- | --- |
 | Admin Cabang WHO/WHP | `admin_cabang` | Ya | Tidak |
 | SND | `snd` | Ya | Tidak |
-| AWS Supervisor | `spv` | Tidak | Ya |
-| Management | `management` | Tidak | Ya (backup, jika diperlukan) |
+| AWS Supervisor | `spv` | Hanya kategori Personalia `cuti`/`izin` (lihat "Ekspansi One Gate" di bawah) | Ya |
+| Operational Manager | `management` | Tidak | Ya (backup, jika diperlukan) |
 | Superadmin | `superadmin` | Tidak | Tidak (kelola user & sistem, monitoring) |
+
+Catatan: value role di database tetap `management` — "Operational Manager" cuma label tampilan di UI (relabel dilakukan saat ekspansi One Gate, lihat di bawah).
 
 ## Alur Status
 
@@ -33,6 +35,7 @@ Aturan penting:
 - Transisi status ditulis **langsung dari client ke Firestore** (lewat modul di `/lib/submissions`), tapi setiap transisi dijaga ketat oleh `firestore.rules`: rules memvalidasi status lama → status baru yang diizinkan, siapa pemiliknya, field apa saja yang boleh berubah (`diff().affectedKeys().hasOnly([...])` per transisi), dan syarat tambahan (mis. `rejectionNote` wajib diisi saat reject, `pdfUrl` harus link Drive saat lanjut ke `siap_dikirim`). Tidak ada Cloud Function di tengah alur ini.
 - `selesai` hanya bisa di-set oleh pemilik pengajuan (`requesterId == auth.uid`), tidak ada aktor lain yang boleh menandainya, termasuk superadmin.
 - `disetujui` bisa dilakukan oleh `spv` atau `management` — field `approverRole` menyimpan siapa yang approve, dipakai untuk isi blok tanda tangan "Mengetahui" di PDF.
+- Alur di atas berlaku untuk `type` `kendaraan`/`perlengkapan`/`gedung_fasilitas`. Untuk `type: "personalia"` (lembur/cuti/izin) alurnya beda: `diajukan → (dual approval spv DAN management, urutan bebas) → selesai` langsung — tidak ada `disetujui`/`siap_dikirim`/`on_proses_ga` (tidak ada PDF, tidak ada kirim ke GA), karena approver kedua yang menyelesaikan approval langsung menutup status ke `selesai`. Reject tetap sama (→ `perlu_revisi` → resubmit → `diajukan`, approval yang sudah ada di-reset ke `null`). Lihat "Ekspansi One Gate" di bawah.
 
 ## Tech Stack
 
@@ -70,27 +73,38 @@ users/{uid}
 
 submissions/{submissionId}
   submissionNumber: string        // contoh format: "L.002/TSI-OPR/JB3-TNG/VIII/2026"
-  type: "kendaraan" | "perlengkapan"
-  subType: string                 // contoh: "service_berkala", "pengadaan_baru"
+  type: "kendaraan" | "perlengkapan" | "gedung_fasilitas" | "personalia"
+  subType: string                 // kendaraan/perlengkapan/gedung_fasilitas: mis. "service_berkala", "pengadaan_baru", "perbaikan"
+                                   // personalia: "lembur" | "cuti" | "izin"
   status: "diajukan" | "perlu_revisi" | "disetujui" | "siap_dikirim" | "on_proses_ga" | "selesai"
   requesterId: string             // ref users
+  branch: string
+  department: string
+  position: string
+  rejectionNote: string | null
+  submittedAt: Timestamp
+  reviewedAt: Timestamp | null
+  completedAt: Timestamp | null
+
+  // Field khusus type kendaraan/perlengkapan/gedung_fasilitas (alur operasional, lihat "Alur Status"):
   requesterSignatureUrl: string
   approverId: string | null
   approverRole: "spv" | "management" | null
   approverName: string | null     // disalin dari users/{approverId}.name saat approve, dipakai di PDF
   approverSignatureUrl: string | null
-  branch: string
-  department: string
-  position: string
-  rejectionNote: string | null
   pdfUrl: string | null           // link Google Drive (https://drive.google.com/...)
-  submittedAt: Timestamp
-  reviewedAt: Timestamp | null
   approvedAt: Timestamp | null
   sentToGaAt: Timestamp | null
-  completedAt: Timestamp | null
 
-submissions/{submissionId}/items/{itemId}
+  // Field khusus type "personalia" (dual approval, lihat "Ekspansi One Gate" di bawah):
+  employeeName: string
+  periodStart: string             // "YYYY-MM-DD", dari <input type="date">
+  periodEnd: string                // "YYYY-MM-DD"
+  spvApproval: { approverId: string; approverName: string; note: string | null; decidedAt: Timestamp } | null
+  managerApproval: { approverId: string; approverName: string; note: string | null; decidedAt: Timestamp } | null
+  // (dokumen personalia diupload sebagai satu attachment di subcollection attachments, bukan items+signature)
+
+submissions/{submissionId}/items/{itemId}   // tidak dipakai untuk type == "personalia" (lihat dokumen di attachments)
   itemName: string
   brandType: string
   km: number | null               // hanya diisi untuk type == "kendaraan"
@@ -122,6 +136,7 @@ counters/{branchYearMonthKey}     // contoh doc id: "WHO-2026-08"
 
 - `users/{uid}`: read oleh pemilik dokumen atau role `spv`/`management`/`superadmin`; create/update hanya oleh `superadmin`, dengan `role` divalidasi masuk enum yang sah (field ini dipakai helper `userRole()` di seluruh ruleset lain, jadi nilai tak valid berisiko merusak evaluasi rule lain); delete selalu ditolak.
 - `submissions/{id}`: create diizinkan kalau `role in ['admin_cabang','snd']` dan `requesterId == auth.uid` dengan status awal `diajukan`; read diizinkan kalau pemilik ATAU role in `['spv','management','superadmin']`. Update status dijaga per-transisi secara eksplisit di rules (resubmit setelah revisi, approve, reject, generate PDF, konfirmasi kirim ke GA, tandai selesai) — masing-masing punya syarat pelaku, status lama yang diizinkan, dan `hasOnly()` field yang boleh berubah. **Tidak ada Cloud Function di jalur ini** — rules-lah yang jadi satu-satunya penjaga.
+- Personalia (`type == 'personalia'`) punya klausa create/update tambahan yang khusus scoped ke `type` ini (rules operasional untuk `kendaraan`/`perlengkapan`/`gedung_fasilitas` tidak diubah): create juga diizinkan untuk `spv` kalau `subType in ['cuti', 'izin']` (bukan `lembur`); update partial approval mengizinkan `spv`/`management` mengisi field approval miliknya sendiri (`spvApproval`/`managerApproval`) selama punya sendiri masih `null`, tanpa mengubah `status`; update final approval mengizinkan approver kedua mengubah `status` ke `selesai` sekaligus mengisi approval-nya, hanya kalau approval yang lain sudah terisi.
 - `submissions/{id}/statusHistory/*`: create diizinkan untuk pemilik/reviewer dengan `actorId`/`actorRole` yang harus cocok dengan caller (mencegah pemalsuan); update/delete selalu ditolak.
 - `submissions/{id}/items/*` dan `submissions/{id}/attachments/*`: create/delete hanya oleh pemilik selama status masih `diajukan`/`perlu_revisi`; update selalu ditolak (immutable, hapus-lalu-buat-ulang kalau perlu ganti).
 - `counters/{id}`: create hanya di angka 1, update hanya increment persis +1, hanya role `admin_cabang`/`snd` — mencegah lompatan nomor pengajuan.
@@ -133,8 +148,10 @@ Pengganti apa yang sebelumnya jadi Cloud Functions callable — sekarang fungsi 
 
 | Modul | Dipanggil dari | Tugas |
 | --- | --- | --- |
-| `lib/submissions/submitSubmission.ts` | Form Buat Pengajuan | Generate `submissionNumber` (transaction di `counters`), tulis submission + items + statusHistory dengan status `diajukan` |
-| `lib/submissions/reviewSubmission.ts` | Halaman Antrian Persetujuan (`spv`/`management`) | Approve → set `disetujui` + data approver; reject → set `perlu_revisi` + `rejectionNote` wajib diisi |
+| `lib/submissions/submitSubmission.ts` | Form Buat Pengajuan (`kendaraan`/`perlengkapan`/`gedung_fasilitas`) | Generate `submissionNumber` (transaction di `counters`), tulis submission + items + statusHistory dengan status `diajukan` |
+| `lib/submissions/reviewSubmission.ts` | Halaman Antrian Persetujuan (`spv`/`management`), alur operasional | Approve → set `disetujui` + data approver; reject → set `perlu_revisi` + `rejectionNote` wajib diisi |
+| `lib/submissions/submitPersonaliaSubmission.ts` | Form Buat Pengajuan, kategori Lembur/Cuti/Izin | Generate `submissionNumber`, tulis submission (field `employeeName`/`periodStart`/`periodEnd`) + 1 attachment + statusHistory; cek role vs `subType` (mis. `lembur` cuma untuk `admin_cabang`/`snd`, bukan `spv`) |
+| `lib/submissions/reviewPersonaliaSubmission.ts` | Halaman Antrian Persetujuan, submission `type: "personalia"` | Approve → isi `spvApproval`/`managerApproval` milik sendiri; kalau approval yang lain sudah ada, sekalian set status `selesai`. Reject → sama seperti alur operasional |
 | `lib/pdf/generateAndAttachSubmissionPdf.ts` + `lib/pdf/generateSubmissionPdfClient.ts` | Halaman detail pengajuan, setelah `disetujui` | Render PDF di browser (jsPDF + html2canvas), upload ke Google Drive, update `pdfUrl` + status `siap_dikirim` |
 | `lib/submissions/confirmSentToGa.ts` | Tombol "Sudah Dikirim" setelah copy template WA | Set status `on_proses_ga` |
 | `lib/submissions/markAsDone.ts` | Tombol "Tandai Selesai" (hanya pemilik) | Set status `selesai`, `completedAt` |
@@ -153,6 +170,15 @@ Aplikasi ini awalnya dibangun dengan business logic sensitif di Cloud Functions 
 3. Generate PDF di client, transisi status ke-5 (ganti Cloud Function `generateSubmissionPdf` yang pakai Puppeteer)
 4. Manajemen user tanpa Cloud Functions (ganti `createUser`/`updateUser`, hapus `resetUserPassword`)
 5. Bersih-bersih: hapus folder `functions/`, update dokumen ini (`docs/superpowers/plans/2026-08-29-bersih-bersih-functions-cleanup.md`)
+
+## Ekspansi One Gate (Gedung & Fasilitas + Personalia)
+
+Setelah migrasi Spark-plan selesai, sistem submissions diperluas jadi "one gate" untuk dua kategori baru (plan & design lengkap: `docs/superpowers/plans/2026-08-29-one-gate-personalia-gedung.md`, `docs/superpowers/specs/2026-08-29-one-gate-personalia-gedung-design.md`):
+
+- **`gedung_fasilitas`**: reuse alur operasional yang sudah ada apa adanya (items + tanda tangan + approve → PDF → kirim GA → selesai) — cuma nambah `type` & `subType` (`pengadaan_baru`/`perbaikan`) baru, tidak ada modul atau rule baru.
+- **`personalia`** (`lembur`/`cuti`/`izin`): alur yang beda secara material — 1 dokumen upload (bukan items+tanda tangan), dual approval dari `spv` DAN `management` (bukan salah satu), auto-selesai tanpa tahap kirim-ke-GA (lihat varian di "Alur Status"). Modul terisolasi: `submitPersonaliaSubmission.ts` + `reviewPersonaliaSubmission.ts`, tidak menyentuh modul operasional yang sudah ada. `spv` jadi bisa mengajukan `cuti`/`izin` (sebagai karyawan) sekaligus tetap approve kategori lain — lihat tabel User Roles. Template WA-nya beda juga: `buildPersonaliaWaTemplate` di `lib/wa-template.ts`, ditujukan ke HC bukan GA.
+- Role `management` di-relabel jadi "Operational Manager" di seluruh UI (nav, form admin, PDF) — value di database tetap `management`.
+- `lib/monitoring.ts` sudah toleran terhadap tahap yang dilewati (personalia langsung `diajukan` → `selesai`): kolom durasi tahap yang tidak ada history-nya otomatis render `"-"`, tidak perlu perubahan kode.
 
 ## Struktur Folder
 
@@ -234,6 +260,7 @@ Detail lengkap komponen & layout halaman ada di dokumen "Spesifikasi Aplikasi Pe
 - [x] Dashboard Monitoring realtime (`onSnapshot`) dengan durasi per tahap & total durasi
 - [x] Halaman Manajemen User (superadmin)
 - [x] Deploy: static export + Firebase Hosting ke project `sndsupportapps` — live di https://sndsupportapps.web.app. `firestore.rules`/`firestore.indexes.json` juga sudah dideploy
-- [ ] Setup Google Drive OAuth (`NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID`, `NEXT_PUBLIC_DRIVE_FOLDER_ID`) — belum diisi di `.env.local`, upload lampiran/tanda tangan/PDF akan gagal sampai ini disetel. Lihat Task 8 di `docs/superpowers/plans/2026-08-22-attachments-signature-upload-gdrive.md`
-- [ ] QA manual end-to-end di browser sungguhan (belum pernah dilakukan)
+- [x] Setup Google Drive OAuth (`NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID`, `NEXT_PUBLIC_DRIVE_FOLDER_ID`) — sudah diisi di `.env.local`
+- [x] Ekspansi One Gate: `gedung_fasilitas` (reuse alur operasional) + `personalia` lembur/cuti/izin (dual approval spv+management) — lihat bagian "Ekspansi One Gate" di atas. Sudah di-merge ke `main`, build & test non-emulator lolos
+- [ ] QA manual end-to-end di browser sungguhan (belum pernah dilakukan) — termasuk alur baru: submit lembur/cuti/izin, dual approval spv+management, dan submit gedung_fasilitas lewat alur operasional penuh (lihat checklist di Task 13 `docs/superpowers/plans/2026-08-29-one-gate-personalia-gedung.md`)
 - [ ] Test otomatis emulator-dependent (`tests/firestore-rules.test.ts`, `lib/counters.test.ts`) belum pernah dijalankan — mesin dev saat ini tidak punya Java
