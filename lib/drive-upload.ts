@@ -1,6 +1,8 @@
 const SYNTHETIC_BOUNDARY = "pengajuan_drive_upload_boundary";
+const APP_FOLDER_NAME = "Pengajuan TSI - Lampiran";
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
+let cachedFolderId: string | null = null;
 let gisLoadPromise: Promise<void> | null = null;
 
 declare global {
@@ -95,18 +97,57 @@ export function buildMultipartRequestBody(
   return new Blob([metadataPart, fileHeaderPart, fileBlob, closingPart]);
 }
 
+/**
+ * The `drive.file` OAuth scope only grants access to files/folders this app created
+ * itself (or that the user opened via a picker) — it can't write into a folder that
+ * was shared in after the fact through Drive's normal sharing UI. So instead of a
+ * pre-shared folder ID, each authorizing account gets its own app-created folder,
+ * found-or-created on first use and cached for the rest of the session.
+ */
+async function getOrCreateAppFolder(accessToken: string): Promise<string> {
+  if (cachedFolderId) {
+    return cachedFolderId;
+  }
+
+  const query = encodeURIComponent(
+    `name='${APP_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
+  );
+  const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id)`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!listRes.ok) {
+    throw new Error(`Gagal mencari folder Google Drive (${listRes.status}).`);
+  }
+  const { files } = (await listRes.json()) as { files: { id: string }[] };
+  if (files.length > 0) {
+    cachedFolderId = files[0].id;
+    return cachedFolderId;
+  }
+
+  const createRes = await fetch("https://www.googleapis.com/drive/v3/files?fields=id", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name: APP_FOLDER_NAME, mimeType: "application/vnd.google-apps.folder" }),
+  });
+  if (!createRes.ok) {
+    throw new Error(`Gagal membuat folder Google Drive (${createRes.status}).`);
+  }
+  const created = (await createRes.json()) as { id: string };
+  cachedFolderId = created.id;
+  return cachedFolderId;
+}
+
 export type DriveUploadResult = { fileId: string; fileUrl: string };
 
 export async function uploadToDriveClient(
   file: File,
   purpose: "attachment" | "signature"
 ): Promise<DriveUploadResult> {
-  const folderId = process.env.NEXT_PUBLIC_DRIVE_FOLDER_ID;
-  if (!folderId) {
-    throw new Error("NEXT_PUBLIC_DRIVE_FOLDER_ID belum dikonfigurasi.");
-  }
-
   const accessToken = await getDriveAccessToken();
+  const folderId = await getOrCreateAppFolder(accessToken);
   const body = buildMultipartRequestBody({ name: file.name, parents: [folderId] }, file, file.type);
 
   const uploadRes = await fetch(
