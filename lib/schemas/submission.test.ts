@@ -284,7 +284,8 @@ describe("createPersonaliaSubmissionSchema", () => {
   });
 
   it("rejects a missing attachment", () => {
-    const { attachment, ...rest } = validPayload;
+    const rest: Partial<typeof validPayload> = { ...validPayload };
+    delete rest.attachment;
     expect(createPersonaliaSubmissionSchema.safeParse(rest).success).toBe(false);
   });
 
