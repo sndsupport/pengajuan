@@ -157,11 +157,13 @@ export default function PersetujuanPage() {
                       />
                     </div>
                     {actionErrorBySubmission[row.id] && (
-                      <p className="text-sm text-destructive">{actionErrorBySubmission[row.id]}</p>
+                      <p role="alert" className="text-sm text-destructive">
+                        {actionErrorBySubmission[row.id]}
+                      </p>
                     )}
                     <div className="flex gap-2 pt-1">
                       <Button
-                        size="sm"
+                        size="lg"
                         disabled={busyId === row.id || !appUser}
                         onClick={() => handlePersonaliaDecision(row.id, "approve")}
                       >
@@ -169,9 +171,9 @@ export default function PersetujuanPage() {
                         Setujui
                       </Button>
                       <Button
-                        size="sm"
+                        size="lg"
                         variant="destructive"
-                        disabled={busyId === row.id || !appUser}
+                        disabled={busyId === row.id || !appUser || !noteBySubmission[row.id]?.trim()}
                         onClick={() => handlePersonaliaDecision(row.id, "reject")}
                       >
                         <X className="h-4 w-4" />
@@ -208,11 +210,12 @@ export default function PersetujuanPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Tanda Tangan Approver (wajib untuk Setujui)</Label>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2" role="group" aria-label="Mode tanda tangan">
                       <Button
                         type="button"
                         variant={mode === "gambar" ? "default" : "outline"}
                         size="sm"
+                        aria-pressed={mode === "gambar"}
                         onClick={() => handleSignatureModeChange(row.id, "gambar")}
                       >
                         Gambar
@@ -221,6 +224,7 @@ export default function PersetujuanPage() {
                         type="button"
                         variant={mode === "upload" ? "default" : "outline"}
                         size="sm"
+                        aria-pressed={mode === "upload"}
                         onClick={() => handleSignatureModeChange(row.id, "upload")}
                       >
                         Upload File
@@ -242,11 +246,13 @@ export default function PersetujuanPage() {
                     )}
                   </div>
                   {actionErrorBySubmission[row.id] && (
-                    <p className="text-sm text-destructive">{actionErrorBySubmission[row.id]}</p>
+                    <p role="alert" className="text-sm text-destructive">
+                      {actionErrorBySubmission[row.id]}
+                    </p>
                   )}
                   <div className="flex gap-2 pt-1">
                     <Button
-                      size="sm"
+                      size="lg"
                       disabled={busyId === row.id || !hasSignature || !appUser}
                       onClick={() => handleDecision(row.id, "approve")}
                     >
@@ -254,9 +260,9 @@ export default function PersetujuanPage() {
                       Setujui
                     </Button>
                     <Button
-                      size="sm"
+                      size="lg"
                       variant="destructive"
-                      disabled={busyId === row.id || !appUser}
+                      disabled={busyId === row.id || !appUser || !noteBySubmission[row.id]?.trim()}
                       onClick={() => handleDecision(row.id, "reject")}
                     >
                       <X className="h-4 w-4" />

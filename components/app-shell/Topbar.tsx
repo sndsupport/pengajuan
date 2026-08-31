@@ -12,7 +12,7 @@ export function Topbar({ onOpenMobile }: { onOpenMobile: () => void }) {
       <button
         type="button"
         onClick={onOpenMobile}
-        className="-ml-1 rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground md:hidden"
+        className="-ml-2 flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground md:hidden"
         aria-label="Buka menu"
       >
         <Menu className="h-5 w-5" />

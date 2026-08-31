@@ -1,4 +1,4 @@
-const STATUS_STYLES: Record<string, { label: string; color: string }> = {
+export const STATUS_STYLES: Record<string, { label: string; color: string }> = {
   diajukan: { label: "Diajukan", color: "#64748B" },
   perlu_revisi: { label: "Perlu Revisi", color: "#D97706" },
   disetujui: { label: "Disetujui", color: "#0891B2" },

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
@@ -17,6 +18,7 @@ import { TYPE_LABEL } from "@/lib/schemas/submission";
 type SubmissionRow = { id: string; submissionNumber: string; type: string; status: string };
 
 export default function PengajuanListPage() {
+  const router = useRouter();
   const { appUser } = useAuth();
   const [rows, setRows] = useState<SubmissionRow[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +90,11 @@ export default function PengajuanListPage() {
             </TableHeader>
             <TableBody>
               {rows.map((row) => (
-                <TableRow key={row.id} className="cursor-pointer">
+                <TableRow
+                  key={row.id}
+                  className="cursor-pointer"
+                  onClick={() => router.push(`/pengajuan/detail?id=${row.id}`)}
+                >
                   <TableCell className="p-0">
                     <Link
                       href={`/pengajuan/detail?id=${row.id}`}

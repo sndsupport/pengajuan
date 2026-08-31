@@ -140,8 +140,17 @@ function EditUserContent() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="name">Nama</Label>
-              <Input id="name" {...register("name")} />
-              {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+              <Input
+                id="name"
+                aria-invalid={!!errors.name}
+                aria-describedby={errors.name ? "name-error" : undefined}
+                {...register("name")}
+              />
+              {errors.name && (
+                <p id="name-error" className="text-sm text-destructive">
+                  {errors.name.message}
+                </p>
+              )}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -170,31 +179,59 @@ function EditUserContent() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="department">Departemen</Label>
-                <Input id="department" {...register("department")} />
-                {errors.department && <p className="text-sm text-destructive">{errors.department.message}</p>}
+                <Input
+                  id="department"
+                  aria-invalid={!!errors.department}
+                  aria-describedby={errors.department ? "department-error" : undefined}
+                  {...register("department")}
+                />
+                {errors.department && (
+                  <p id="department-error" className="text-sm text-destructive">
+                    {errors.department.message}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="position">Posisi</Label>
-                <Input id="position" {...register("position")} />
-                {errors.position && <p className="text-sm text-destructive">{errors.position.message}</p>}
+                <Input
+                  id="position"
+                  aria-invalid={!!errors.position}
+                  aria-describedby={errors.position ? "position-error" : undefined}
+                  {...register("position")}
+                />
+                {errors.position && (
+                  <p id="position-error" className="text-sm text-destructive">
+                    {errors.position.message}
+                  </p>
+                )}
               </div>
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="email">Email (opsional)</Label>
-              <Input id="email" type="email" {...register("email", { setValueAs: (v) => (v === "" ? undefined : v) })} />
-              {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+              <Input
+                id="email"
+                type="email"
+                aria-invalid={!!errors.email}
+                aria-describedby={errors.email ? "email-error" : undefined}
+                {...register("email", { setValueAs: (v) => (v === "" ? undefined : v) })}
+              />
+              {errors.email && (
+                <p id="email-error" className="text-sm text-destructive">
+                  {errors.email.message}
+                </p>
+              )}
             </div>
 
             {serverError && (
-              <div className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+              <div role="alert" className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{serverError}</span>
               </div>
             )}
 
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" size="lg" disabled={isSubmitting}>
               {isSubmitting ? "Menyimpan..." : "Simpan Perubahan"}
             </Button>
           </form>

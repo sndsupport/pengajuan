@@ -11,7 +11,7 @@ import { TYPE_LABEL, PERSONALIA_SUBTYPE_LABEL } from "@/lib/schemas/submission";
 import { confirmSentToGa } from "@/lib/submissions/confirmSentToGa";
 import { markAsDone } from "@/lib/submissions/markAsDone";
 import { generateAndAttachSubmissionPdf } from "@/lib/pdf/generateAndAttachSubmissionPdf";
-import { StatusBadge } from "@/components/status-badge/StatusBadge";
+import { StatusBadge, STATUS_STYLES } from "@/components/status-badge/StatusBadge";
 import { SubmissionTimeline, StatusHistoryEntry } from "@/components/submission-timeline/SubmissionTimeline";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -196,13 +196,21 @@ function PengajuanDetailContent() {
       </div>
 
       {submission.status === "perlu_revisi" && (
-        <Card className="border-amber-300 bg-amber-50">
+        <Card
+          style={{
+            borderColor: `${STATUS_STYLES.perlu_revisi.color}66`,
+            backgroundColor: `${STATUS_STYLES.perlu_revisi.color}0D`,
+          }}
+        >
           <CardContent className="space-y-2 pt-6">
-            <p className="flex items-center gap-2 font-medium text-amber-900">
+            <p
+              className="flex items-center gap-2 font-medium"
+              style={{ color: STATUS_STYLES.perlu_revisi.color }}
+            >
               <FileWarning className="h-4 w-4" />
               Catatan revisi
             </p>
-            <p className="text-sm text-amber-900/90">{submission.rejectionNote}</p>
+            <p className="text-sm text-foreground">{submission.rejectionNote}</p>
             <Link href={`/pengajuan/new?resubmit=${submission.id}`}>
               <Button className="mt-1" size="sm">
                 Revisi &amp; Ajukan Ulang
@@ -220,7 +228,11 @@ function PengajuanDetailContent() {
                 <CardTitle className="text-base">PDF pengajuan belum berhasil dibuat</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {pdfError && <p className="text-sm text-destructive">{pdfError}</p>}
+                {pdfError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {pdfError}
+                  </p>
+                )}
                 <Button type="button" size="sm" disabled={generatingPdf} onClick={handleGeneratePdf}>
                   {generatingPdf ? "Memproses..." : "Coba Generate PDF"}
                 </Button>
@@ -263,15 +275,28 @@ function PengajuanDetailContent() {
                     <Copy className="h-4 w-4" />
                     Salin Template
                   </Button>
-                  {copyFeedback && (
-                    <span className="flex items-center gap-1 text-sm font-medium text-emerald-600">
-                      <CheckCircle2 className="h-4 w-4" />
-                      Disalin!
-                    </span>
-                  )}
+                  <span role="status" aria-live="polite">
+                    {copyFeedback && (
+                      <span
+                        className="flex items-center gap-1 text-sm font-medium"
+                        style={{ color: STATUS_STYLES.selesai.color }}
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        Disalin!
+                      </span>
+                    )}
+                  </span>
                 </div>
-                {copyError && <p className="text-sm text-destructive">{copyError}</p>}
-                {confirmError && <p className="text-sm text-destructive">{confirmError}</p>}
+                {copyError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {copyError}
+                  </p>
+                )}
+                {confirmError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {confirmError}
+                  </p>
+                )}
                 <Button type="button" size="sm" disabled={confirming} onClick={handleConfirm}>
                   {confirming ? "Memproses..." : "Konfirmasi Sudah Dikirim ke GA"}
                 </Button>
@@ -285,7 +310,11 @@ function PengajuanDetailContent() {
                 <CardTitle className="text-base">Barang/layanan sudah diterima?</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {markDoneError && <p className="text-sm text-destructive">{markDoneError}</p>}
+                {markDoneError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {markDoneError}
+                  </p>
+                )}
                 <Button type="button" size="sm" disabled={markingDone} onClick={handleMarkDone}>
                   {markingDone ? "Memproses..." : "Tandai Selesai"}
                 </Button>
@@ -360,14 +389,23 @@ function PengajuanDetailContent() {
                 <Copy className="h-4 w-4" />
                 Salin Template WA ke HC
               </Button>
-              {hcCopyFeedback && (
-                <span className="flex items-center gap-1 text-sm font-medium text-emerald-600">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Disalin!
-                </span>
-              )}
+              <span role="status" aria-live="polite">
+                {hcCopyFeedback && (
+                  <span
+                    className="flex items-center gap-1 text-sm font-medium"
+                    style={{ color: STATUS_STYLES.selesai.color }}
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Disalin!
+                  </span>
+                )}
+              </span>
             </div>
-            {hcCopyError && <p className="text-sm text-destructive">{hcCopyError}</p>}
+            {hcCopyError && (
+              <p role="alert" className="text-sm text-destructive">
+                {hcCopyError}
+              </p>
+            )}
           </CardContent>
         </Card>
       )}

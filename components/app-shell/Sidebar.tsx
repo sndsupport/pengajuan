@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
@@ -32,6 +33,15 @@ export function Sidebar({
   const pathname = usePathname();
   const router = useRouter();
   const items = navItemsForRole(appUser.role);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onCloseMobile();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [mobileOpen, onCloseMobile]);
 
   async function handleLogout() {
     await signOut(auth);
@@ -70,7 +80,7 @@ export function Sidebar({
           <button
             type="button"
             onClick={onCloseMobile}
-            className="ml-auto rounded-md p-1.5 text-[var(--sidebar-foreground)]/70 hover:bg-[var(--sidebar-accent)] md:hidden"
+            className="ml-auto flex h-11 w-11 items-center justify-center rounded-md text-[var(--sidebar-foreground)]/70 hover:bg-[var(--sidebar-accent)] md:hidden"
             aria-label="Tutup menu"
           >
             <X className="h-4.5 w-4.5" />
@@ -87,6 +97,7 @@ export function Sidebar({
                 href={item.href}
                 onClick={onCloseMobile}
                 title={collapsed ? item.label : undefined}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                   collapsed && "justify-center px-0",
@@ -105,7 +116,7 @@ export function Sidebar({
         <button
           type="button"
           onClick={onToggleCollapsed}
-          className="mx-3 mb-2 hidden items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium text-[var(--sidebar-foreground)]/60 hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-accent-foreground)] md:flex"
+          className="mx-3 mb-2 hidden min-h-11 items-center justify-center gap-2 rounded-lg py-2 text-xs font-medium text-[var(--sidebar-foreground)]/60 hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-accent-foreground)] md:flex"
         >
           {collapsed ? <ChevronsRight className="h-4 w-4" /> : (
             <>
@@ -132,7 +143,7 @@ export function Sidebar({
               type="button"
               onClick={handleLogout}
               title="Keluar"
-              className="ml-auto shrink-0 rounded-md p-1.5 text-[var(--sidebar-foreground)]/60 hover:bg-[var(--sidebar-accent)] hover:text-red-300"
+              className="ml-auto flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-[var(--sidebar-foreground)]/60 hover:bg-[var(--sidebar-accent)] hover:text-red-300"
               aria-label="Keluar"
             >
               <LogOut className="h-4 w-4" />

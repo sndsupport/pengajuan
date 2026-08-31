@@ -303,23 +303,46 @@ export default function NewPengajuanPage() {
             <CardContent className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="employeeName">Nama Karyawan</Label>
-                <Input id="employeeName" {...registerPersonalia("employeeName")} />
+                <Input
+                  id="employeeName"
+                  aria-invalid={!!personaliaErrors.employeeName}
+                  aria-describedby={personaliaErrors.employeeName ? "employeeName-error" : undefined}
+                  {...registerPersonalia("employeeName")}
+                />
                 {personaliaErrors.employeeName && (
-                  <p className="text-sm text-destructive">{personaliaErrors.employeeName.message}</p>
+                  <p id="employeeName-error" className="text-sm text-destructive">
+                    {personaliaErrors.employeeName.message}
+                  </p>
                 )}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="periodStart">Tanggal Mulai</Label>
-                <Input id="periodStart" type="date" {...registerPersonalia("periodStart")} />
+                <Input
+                  id="periodStart"
+                  type="date"
+                  aria-invalid={!!personaliaErrors.periodStart}
+                  aria-describedby={personaliaErrors.periodStart ? "periodStart-error" : undefined}
+                  {...registerPersonalia("periodStart")}
+                />
                 {personaliaErrors.periodStart && (
-                  <p className="text-sm text-destructive">{personaliaErrors.periodStart.message}</p>
+                  <p id="periodStart-error" className="text-sm text-destructive">
+                    {personaliaErrors.periodStart.message}
+                  </p>
                 )}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="periodEnd">Tanggal Selesai</Label>
-                <Input id="periodEnd" type="date" {...registerPersonalia("periodEnd")} />
+                <Input
+                  id="periodEnd"
+                  type="date"
+                  aria-invalid={!!personaliaErrors.periodEnd}
+                  aria-describedby={personaliaErrors.periodEnd ? "periodEnd-error" : undefined}
+                  {...registerPersonalia("periodEnd")}
+                />
                 {personaliaErrors.periodEnd && (
-                  <p className="text-sm text-destructive">{personaliaErrors.periodEnd.message}</p>
+                  <p id="periodEnd-error" className="text-sm text-destructive">
+                    {personaliaErrors.periodEnd.message}
+                  </p>
                 )}
               </div>
             </CardContent>
@@ -341,6 +364,7 @@ export default function NewPengajuanPage() {
                     type="button"
                     variant="ghost"
                     size="sm"
+                    aria-label="Hapus dokumen"
                     onClick={() => setValuePersonalia("attachment", undefined as never)}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -356,7 +380,7 @@ export default function NewPengajuanPage() {
           </Card>
 
           {serverError && (
-            <div className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+            <div role="alert" className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{serverError}</span>
             </div>
@@ -377,14 +401,23 @@ export default function NewPengajuanPage() {
             </CardHeader>
             <CardContent>
               <input type="hidden" {...typeField} />
-              <NativeSelect id="subType" {...register("subType")}>
+              <NativeSelect
+                id="subType"
+                aria-invalid={!!errors.subType}
+                aria-describedby={errors.subType ? "subType-error" : undefined}
+                {...register("subType")}
+              >
                 {subTypeByType[selectedType].map((st) => (
                   <option key={st} value={st}>
                     {st}
                   </option>
                 ))}
               </NativeSelect>
-              {errors.subType && <p className="text-sm text-destructive">{errors.subType.message}</p>}
+              {errors.subType && (
+                <p id="subType-error" className="text-sm text-destructive">
+                  {errors.subType.message}
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -413,15 +446,31 @@ export default function NewPengajuanPage() {
                   <div key={field.id} className="space-y-3 rounded-xl border bg-muted/30 p-4">
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="space-y-1.5">
-                        <Input placeholder="Nama item" {...register(`items.${index}.itemName`)} />
+                        <Input
+                          placeholder="Nama item"
+                          aria-label="Nama item"
+                          aria-invalid={!!itemErrors?.itemName}
+                          aria-describedby={itemErrors?.itemName ? `item-${index}-itemName-error` : undefined}
+                          {...register(`items.${index}.itemName`)}
+                        />
                         {itemErrors?.itemName && (
-                          <p className="text-sm text-destructive">{itemErrors.itemName.message}</p>
+                          <p id={`item-${index}-itemName-error`} className="text-sm text-destructive">
+                            {itemErrors.itemName.message}
+                          </p>
                         )}
                       </div>
                       <div className="space-y-1.5">
-                        <Input placeholder="Merk/Tipe" {...register(`items.${index}.brandType`)} />
+                        <Input
+                          placeholder="Merk/Tipe"
+                          aria-label="Merk/Tipe"
+                          aria-invalid={!!itemErrors?.brandType}
+                          aria-describedby={itemErrors?.brandType ? `item-${index}-brandType-error` : undefined}
+                          {...register(`items.${index}.brandType`)}
+                        />
                         {itemErrors?.brandType && (
-                          <p className="text-sm text-destructive">{itemErrors.brandType.message}</p>
+                          <p id={`item-${index}-brandType-error`} className="text-sm text-destructive">
+                            {itemErrors.brandType.message}
+                          </p>
                         )}
                       </div>
                       {selectedType === "kendaraan" && (
@@ -429,31 +478,53 @@ export default function NewPengajuanPage() {
                           <Input
                             type="number"
                             placeholder="KM"
+                            aria-label="KM"
                             className="font-mono"
+                            aria-invalid={!!itemErrors?.km}
+                            aria-describedby={itemErrors?.km ? `item-${index}-km-error` : undefined}
                             {...register(`items.${index}.km`, {
                               setValueAs: (v) => (v === "" ? null : Number(v)),
                             })}
                           />
-                          {itemErrors?.km && <p className="text-sm text-destructive">{itemErrors.km.message}</p>}
+                          {itemErrors?.km && (
+                            <p id={`item-${index}-km-error`} className="text-sm text-destructive">
+                              {itemErrors.km.message}
+                            </p>
+                          )}
                         </div>
                       )}
                       <div className="space-y-1.5">
                         <Input
                           type="number"
                           placeholder="Jumlah"
+                          aria-label="Jumlah"
                           className="font-mono"
+                          aria-invalid={!!itemErrors?.quantity}
+                          aria-describedby={itemErrors?.quantity ? `item-${index}-quantity-error` : undefined}
                           {...register(`items.${index}.quantity`, { valueAsNumber: true })}
                         />
                         {itemErrors?.quantity && (
-                          <p className="text-sm text-destructive">{itemErrors.quantity.message}</p>
+                          <p id={`item-${index}-quantity-error`} className="text-sm text-destructive">
+                            {itemErrors.quantity.message}
+                          </p>
                         )}
                       </div>
                       <div className="space-y-1.5">
-                        <Input placeholder="Satuan" {...register(`items.${index}.unit`)} />
-                        {itemErrors?.unit && <p className="text-sm text-destructive">{itemErrors.unit.message}</p>}
+                        <Input
+                          placeholder="Satuan"
+                          aria-label="Satuan"
+                          aria-invalid={!!itemErrors?.unit}
+                          aria-describedby={itemErrors?.unit ? `item-${index}-unit-error` : undefined}
+                          {...register(`items.${index}.unit`)}
+                        />
+                        {itemErrors?.unit && (
+                          <p id={`item-${index}-unit-error`} className="text-sm text-destructive">
+                            {itemErrors.unit.message}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <Textarea placeholder="Deskripsi" {...register(`items.${index}.description`)} />
+                    <Textarea placeholder="Deskripsi" aria-label="Deskripsi" {...register(`items.${index}.description`)} />
                     {fields.length > 1 && (
                       <Button
                         type="button"
@@ -486,7 +557,13 @@ export default function NewPengajuanPage() {
               {attachmentFields.map((field, index) => (
                 <div key={field.id} className="flex items-center justify-between rounded-lg border p-2.5 text-sm">
                   <span className="truncate">{field.fileName}</span>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => removeAttachment(index)}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    aria-label={`Hapus lampiran ${field.fileName}`}
+                    onClick={() => removeAttachment(index)}
+                  >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -503,11 +580,12 @@ export default function NewPengajuanPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex gap-2">
+              <div className="flex gap-2" role="group" aria-label="Mode tanda tangan">
                 <Button
                   type="button"
                   variant={signatureMode === "gambar" ? "default" : "outline"}
                   size="sm"
+                  aria-pressed={signatureMode === "gambar"}
                   onClick={() => handleSignatureModeChange("gambar")}
                 >
                   Gambar
@@ -516,6 +594,7 @@ export default function NewPengajuanPage() {
                   type="button"
                   variant={signatureMode === "upload" ? "default" : "outline"}
                   size="sm"
+                  aria-pressed={signatureMode === "upload"}
                   onClick={() => handleSignatureModeChange("upload")}
                 >
                   Upload File
@@ -538,13 +617,15 @@ export default function NewPengajuanPage() {
                 </>
               )}
               {errors.requesterSignatureUrl && (
-                <p className="text-sm text-destructive">Tanda tangan wajib diisi.</p>
+                <p role="alert" className="text-sm text-destructive">
+                  Tanda tangan wajib diisi.
+                </p>
               )}
             </CardContent>
           </Card>
 
           {serverError && (
-            <div className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+            <div role="alert" className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{serverError}</span>
             </div>

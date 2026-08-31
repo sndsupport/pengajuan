@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header/PageHeader";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Eye, EyeOff } from "lucide-react";
 
 const ROLE_OPTIONS = [
   { value: "admin_cabang", label: "Admin Cabang" },
@@ -34,6 +34,7 @@ export default function NewUserPage() {
   const { appUser, loading } = useAuth();
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (!loading && appUser && appUser.role !== "superadmin") {
@@ -90,21 +91,61 @@ export default function NewUserPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="name">Nama</Label>
-                <Input id="name" {...register("name")} />
-                {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+                <Input
+                  id="name"
+                  aria-invalid={!!errors.name}
+                  aria-describedby={errors.name ? "name-error" : undefined}
+                  {...register("name")}
+                />
+                {errors.name && (
+                  <p id="name-error" className="text-sm text-destructive">
+                    {errors.name.message}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="username">Username</Label>
-                <Input id="username" {...register("username")} />
-                {errors.username && <p className="text-sm text-destructive">{errors.username.message}</p>}
+                <Input
+                  id="username"
+                  aria-invalid={!!errors.username}
+                  aria-describedby={errors.username ? "username-error" : undefined}
+                  {...register("username")}
+                />
+                {errors.username && (
+                  <p id="username-error" className="text-sm text-destructive">
+                    {errors.username.message}
+                  </p>
+                )}
               </div>
             </div>
 
             <div className="space-y-1.5">
               <Label htmlFor="password">Password Awal</Label>
-              <Input id="password" type="password" {...register("password")} />
-              {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
+                  className="pr-9"
+                  aria-invalid={!!errors.password}
+                  aria-describedby={errors.password ? "password-error" : undefined}
+                  {...register("password")}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              {errors.password && (
+                <p id="password-error" className="text-sm text-destructive">
+                  {errors.password.message}
+                </p>
+              )}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -133,14 +174,32 @@ export default function NewUserPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="department">Departemen</Label>
-                <Input id="department" {...register("department")} />
-                {errors.department && <p className="text-sm text-destructive">{errors.department.message}</p>}
+                <Input
+                  id="department"
+                  aria-invalid={!!errors.department}
+                  aria-describedby={errors.department ? "department-error" : undefined}
+                  {...register("department")}
+                />
+                {errors.department && (
+                  <p id="department-error" className="text-sm text-destructive">
+                    {errors.department.message}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="position">Posisi</Label>
-                <Input id="position" {...register("position")} />
-                {errors.position && <p className="text-sm text-destructive">{errors.position.message}</p>}
+                <Input
+                  id="position"
+                  aria-invalid={!!errors.position}
+                  aria-describedby={errors.position ? "position-error" : undefined}
+                  {...register("position")}
+                />
+                {errors.position && (
+                  <p id="position-error" className="text-sm text-destructive">
+                    {errors.position.message}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -149,19 +208,25 @@ export default function NewUserPage() {
               <Input
                 id="email"
                 type="email"
+                aria-invalid={!!errors.email}
+                aria-describedby={errors.email ? "email-error" : undefined}
                 {...register("email", { setValueAs: (v) => (v === "" ? undefined : v) })}
               />
-              {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
+              {errors.email && (
+                <p id="email-error" className="text-sm text-destructive">
+                  {errors.email.message}
+                </p>
+              )}
             </div>
 
             {serverError && (
-              <div className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+              <div role="alert" className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>{serverError}</span>
               </div>
             )}
 
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" size="lg" disabled={isSubmitting}>
               {isSubmitting ? "Membuat..." : "Buat User"}
             </Button>
           </form>

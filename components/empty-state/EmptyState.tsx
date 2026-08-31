@@ -28,7 +28,7 @@ export function EmptyState({
           variant === "error" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"
         )}
       >
-        <Icon className="h-5 w-5" />
+        <Icon className="h-5 w-5" aria-hidden="true" />
       </div>
       <p className={cn("text-sm font-medium", variant === "error" && "text-destructive")}>{title}</p>
       {description && <p className="max-w-sm text-sm text-muted-foreground">{description}</p>}
