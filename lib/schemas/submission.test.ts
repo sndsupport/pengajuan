@@ -1,6 +1,14 @@
 // lib/schemas/submission.test.ts
 import { describe, it, expect } from "vitest";
-import { createSubmissionSchema, reviewSubmissionSchema, uploadFileSchema, confirmSentToGaSchema, markAsDoneSchema } from "./submission";
+import {
+  createSubmissionSchema,
+  reviewSubmissionSchema,
+  uploadFileSchema,
+  confirmSentToGaSchema,
+  markAsDoneSchema,
+  createPersonaliaSubmissionSchema,
+  reviewPersonaliaSubmissionSchema,
+} from "./submission";
 
 describe("createSubmissionSchema", () => {
   const validPayload = {
@@ -77,6 +85,46 @@ describe("createSubmissionSchema", () => {
       attachments: [{ fileUrl: "https://drive.google.com/file/d/abc/view", fileName: "nota.png", fileType: "image/png" }],
     };
     expect(createSubmissionSchema.safeParse(payload).success).toBe(false);
+  });
+});
+
+describe("createSubmissionSchema — gedung_fasilitas", () => {
+  it("accepts a valid gedung_fasilitas payload without km", () => {
+    const payload = {
+      type: "gedung_fasilitas" as const,
+      subType: "perbaikan" as const,
+      requesterSignatureUrl: "https://storage.example.com/sig.png",
+      items: [{ itemName: "AC ruang meeting", brandType: "Daikin 1PK", km: null, quantity: 1, unit: "unit", description: "Bocor freon" }],
+    };
+    expect(createSubmissionSchema.safeParse(payload).success).toBe(true);
+  });
+
+  it("rejects a subType not valid for gedung_fasilitas", () => {
+    const payload = {
+      type: "gedung_fasilitas" as const,
+      subType: "service_berkala",
+      requesterSignatureUrl: "https://storage.example.com/sig.png",
+      items: [{ itemName: "AC ruang meeting", brandType: "Daikin 1PK", km: null, quantity: 1, unit: "unit", description: "" }],
+    };
+    expect(createSubmissionSchema.safeParse(payload).success).toBe(false);
+  });
+
+  it("rejects type personalia via safeParse instead of throwing (no subTypeByType entry for it)", () => {
+    expect(() =>
+      createSubmissionSchema.safeParse({
+        type: "personalia",
+        subType: "lembur",
+        requesterSignatureUrl: "https://storage.example.com/sig.png",
+        items: [{ itemName: "x", brandType: "x", km: null, quantity: 1, unit: "x", description: "" }],
+      })
+    ).not.toThrow();
+    const result = createSubmissionSchema.safeParse({
+      type: "personalia",
+      subType: "lembur",
+      requesterSignatureUrl: "https://storage.example.com/sig.png",
+      items: [{ itemName: "x", brandType: "x", km: null, quantity: 1, unit: "x", description: "" }],
+    });
+    expect(result.success).toBe(false);
   });
 });
 
@@ -192,5 +240,81 @@ describe("markAsDoneSchema", () => {
 
   it("rejects a missing submissionId", () => {
     expect(markAsDoneSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("createPersonaliaSubmissionSchema", () => {
+  const validPayload = {
+    subType: "cuti" as const,
+    employeeName: "Rahmat Hidayat",
+    periodStart: "2026-09-01",
+    periodEnd: "2026-09-03",
+    attachment: {
+      fileId: "file-cuti-1",
+      fileUrl: "https://drive.google.com/file/d/cuti1/view",
+      fileName: "form-cuti-rahmat.pdf",
+      fileType: "application/pdf",
+    },
+  };
+
+  it("accepts a valid cuti payload", () => {
+    expect(createPersonaliaSubmissionSchema.safeParse(validPayload).success).toBe(true);
+  });
+
+  it("accepts lembur and izin as subType", () => {
+    expect(createPersonaliaSubmissionSchema.safeParse({ ...validPayload, subType: "lembur" }).success).toBe(true);
+    expect(createPersonaliaSubmissionSchema.safeParse({ ...validPayload, subType: "izin" }).success).toBe(true);
+  });
+
+  it("rejects an unknown subType", () => {
+    expect(createPersonaliaSubmissionSchema.safeParse({ ...validPayload, subType: "sakit" }).success).toBe(false);
+  });
+
+  it("rejects an empty employeeName", () => {
+    expect(createPersonaliaSubmissionSchema.safeParse({ ...validPayload, employeeName: "" }).success).toBe(false);
+  });
+
+  it("rejects periodEnd before periodStart", () => {
+    const result = createPersonaliaSubmissionSchema.safeParse({
+      ...validPayload,
+      periodStart: "2026-09-05",
+      periodEnd: "2026-09-01",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a missing attachment", () => {
+    const { attachment, ...rest } = validPayload;
+    expect(createPersonaliaSubmissionSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it("allows submissionId to be null (resubmit path serializes an absent field as null)", () => {
+    expect(createPersonaliaSubmissionSchema.safeParse({ ...validPayload, submissionId: null }).success).toBe(true);
+  });
+});
+
+describe("reviewPersonaliaSubmissionSchema", () => {
+  it("requires rejectionNote when decision is reject", () => {
+    const result = reviewPersonaliaSubmissionSchema.safeParse({ submissionId: "abc", decision: "reject", rejectionNote: "" });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts reject with a non-empty rejectionNote", () => {
+    const result = reviewPersonaliaSubmissionSchema.safeParse({
+      submissionId: "abc",
+      decision: "reject",
+      rejectionNote: "Tanggal cuti tidak jelas",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts approve without requiring a note", () => {
+    const result = reviewPersonaliaSubmissionSchema.safeParse({ submissionId: "abc", decision: "approve" });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts approve with an optional note", () => {
+    const result = reviewPersonaliaSubmissionSchema.safeParse({ submissionId: "abc", decision: "approve", note: "OK" });
+    expect(result.success).toBe(true);
   });
 });

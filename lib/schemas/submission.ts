@@ -1,10 +1,18 @@
 import { z } from "zod";
 
-export const submissionTypeSchema = z.enum(["kendaraan", "perlengkapan"]);
+export const submissionTypeSchema = z.enum(["kendaraan", "perlengkapan", "gedung_fasilitas", "personalia"]);
 
 export const subTypeByType = {
   kendaraan: ["service_berkala", "service_insidentil", "pengadaan_baru"] as const,
   perlengkapan: ["pengadaan_baru", "penggantian"] as const,
+  gedung_fasilitas: ["pengadaan_baru", "perbaikan"] as const,
+};
+
+export const TYPE_LABEL: Record<string, string> = {
+  kendaraan: "Kendaraan",
+  perlengkapan: "Perlengkapan",
+  gedung_fasilitas: "Gedung & Fasilitas",
+  personalia: "Personalia",
 };
 
 export const itemSchema = z.object({
@@ -32,10 +40,14 @@ export const createSubmissionSchema = z
     items: z.array(itemSchema).min(1, "Minimal 1 item"),
     attachments: z.array(attachmentSchema).default([]),
   })
-  .refine((data) => (subTypeByType[data.type] as readonly string[]).includes(data.subType), {
-    message: "subType tidak valid untuk type ini",
-    path: ["subType"],
-  });
+  .refine(
+    (data) =>
+      (subTypeByType as Record<string, readonly string[] | undefined>)[data.type]?.includes(data.subType) ?? false,
+    {
+      message: "subType tidak valid untuk type ini",
+      path: ["subType"],
+    }
+  );
 
 export type CreateSubmissionInput = z.infer<typeof createSubmissionSchema>;
 
@@ -80,3 +92,41 @@ export const markAsDoneSchema = z.object({
 });
 
 export type MarkAsDoneInput = z.infer<typeof markAsDoneSchema>;
+
+export const personaliaSubTypeSchema = z.enum(["lembur", "cuti", "izin"]);
+
+export const PERSONALIA_SUBTYPE_LABEL: Record<z.infer<typeof personaliaSubTypeSchema>, string> = {
+  lembur: "Lembur",
+  cuti: "Cuti",
+  izin: "Izin",
+};
+
+export const createPersonaliaSubmissionSchema = z
+  .object({
+    submissionId: z.string().nullish(),
+    subType: personaliaSubTypeSchema,
+    employeeName: z.string().min(1, "Nama karyawan wajib diisi"),
+    periodStart: z.string().min(1, "Tanggal mulai wajib diisi"),
+    periodEnd: z.string().min(1, "Tanggal selesai wajib diisi"),
+    attachment: attachmentSchema,
+  })
+  .refine((data) => data.periodEnd >= data.periodStart, {
+    message: "Tanggal selesai tidak boleh sebelum tanggal mulai",
+    path: ["periodEnd"],
+  });
+
+export type CreatePersonaliaSubmissionInput = z.infer<typeof createPersonaliaSubmissionSchema>;
+
+export const reviewPersonaliaSubmissionSchema = z
+  .object({
+    submissionId: z.string().min(1),
+    decision: z.enum(["approve", "reject"]),
+    rejectionNote: z.string().nullish(),
+    note: z.string().nullish(),
+  })
+  .refine((data) => data.decision !== "reject" || (data.rejectionNote && data.rejectionNote.trim().length > 0), {
+    message: "rejectionNote wajib diisi saat reject",
+    path: ["rejectionNote"],
+  });
+
+export type ReviewPersonaliaSubmissionInput = z.infer<typeof reviewPersonaliaSubmissionSchema>;

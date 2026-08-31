@@ -7,6 +7,7 @@ import { db } from "@/lib/firebase/client";
 import { computeStageDurations, formatDuration, StatusHistoryEntry } from "@/lib/monitoring";
 import { StatusBadge } from "@/components/status-badge/StatusBadge";
 import { TableCell, TableRow } from "@/components/ui/table";
+import { TYPE_LABEL } from "@/lib/schemas/submission";
 
 const requesterNameCache = new Map<string, string>();
 
@@ -67,7 +68,7 @@ export function MonitoringRow({ submission }: { submission: MonitoringSubmission
       </TableCell>
       <TableCell>{requesterName}</TableCell>
       <TableCell>{submission.branch}</TableCell>
-      <TableCell className="capitalize">{submission.type}</TableCell>
+      <TableCell>{TYPE_LABEL[submission.type] ?? submission.type}</TableCell>
       <TableCell>
         <StatusBadge status={submission.status} />
       </TableCell>

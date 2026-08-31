@@ -14,7 +14,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/pengajuan",
     label: "Pengajuan Saya",
     icon: FileStack,
-    roles: ["admin_cabang", "snd"],
+    roles: ["admin_cabang", "snd", "spv"],
   },
   {
     href: "/persetujuan",
@@ -40,7 +40,7 @@ export const ROLE_LABEL: Record<AppUser["role"], string> = {
   admin_cabang: "Admin Cabang",
   snd: "SND",
   spv: "AWS Supervisor",
-  management: "Management",
+  management: "Operational Manager",
   superadmin: "Superadmin",
 };
 

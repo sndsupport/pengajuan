@@ -66,7 +66,7 @@ export default function AdminUsersPage() {
     <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
       <PageHeader
         title="Manajemen User"
-        description="Kelola akun pengguna aplikasi: admin cabang, SND, supervisor, management, dan superadmin."
+        description="Kelola akun pengguna aplikasi: admin cabang, SND, supervisor, Operational Manager, dan superadmin."
         actions={
           <Button asChild>
             <Link href="/admin/new">

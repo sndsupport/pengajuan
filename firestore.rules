@@ -24,9 +24,14 @@ service cloud.firestore {
 
     match /submissions/{submissionId} {
       allow create: if isSignedIn()
-        && isRequesterRole()
         && request.resource.data.requesterId == request.auth.uid
-        && request.resource.data.status == 'diajukan';
+        && request.resource.data.status == 'diajukan'
+        && (
+          isRequesterRole()
+          || (userRole() == 'spv'
+            && request.resource.data.type == 'personalia'
+            && request.resource.data.subType in ['cuti', 'izin'])
+        );
       allow read: if isSignedIn() && (resource.data.requesterId == request.auth.uid || isReviewer());
 
       allow update: if isSignedIn()
@@ -83,6 +88,53 @@ service cloud.firestore {
           && request.resource.data.status == 'selesai'
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['status', 'completedAt']))
+        ||
+        // Resubmit personalia setelah revisi: pemilik, status lama perlu_revisi -> diajukan
+        (resource.data.requesterId == request.auth.uid
+          && resource.data.type == 'personalia'
+          && resource.data.status == 'perlu_revisi'
+          && request.resource.data.status == 'diajukan'
+          && request.resource.data.spvApproval == null
+          && request.resource.data.managerApproval == null
+          && (userRole() != 'spv' || request.resource.data.subType in ['cuti', 'izin'])
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['subType', 'employeeName', 'periodStart', 'periodEnd', 'status', 'rejectionNote', 'spvApproval', 'managerApproval']))
+        ||
+        // Personalia partial approval: spv/management mengisi approval milik sendiri, status tetap diajukan
+        (resource.data.type == 'personalia'
+          && resource.data.status == 'diajukan'
+          && request.resource.data.status == 'diajukan'
+          && (
+            (userRole() == 'spv'
+              && resource.data.spvApproval == null
+              && request.resource.data.spvApproval.approverId == request.auth.uid
+              && request.resource.data.spvApproval.approverName == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.name
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['spvApproval']))
+            ||
+            (userRole() == 'management'
+              && resource.data.managerApproval == null
+              && request.resource.data.managerApproval.approverId == request.auth.uid
+              && request.resource.data.managerApproval.approverName == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.name
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['managerApproval']))
+          ))
+        ||
+        // Personalia final approval: approver kedua, status diajukan -> selesai
+        (resource.data.type == 'personalia'
+          && resource.data.status == 'diajukan'
+          && request.resource.data.status == 'selesai'
+          && (
+            (userRole() == 'spv'
+              && resource.data.managerApproval != null
+              && resource.data.spvApproval == null
+              && request.resource.data.spvApproval.approverId == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['spvApproval', 'status', 'completedAt']))
+            ||
+            (userRole() == 'management'
+              && resource.data.spvApproval != null
+              && resource.data.managerApproval == null
+              && request.resource.data.managerApproval.approverId == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['managerApproval', 'status', 'completedAt']))
+          ))
       );
 
       allow delete: if false;

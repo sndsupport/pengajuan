@@ -59,7 +59,7 @@ describe("buildSubmissionPdfHtml", () => {
 
   it("renders a human-readable label for approverRole management", () => {
     const html = buildSubmissionPdfHtml({ ...baseData, approverRole: "management" });
-    expect(html).toContain("Management");
+    expect(html).toContain("Operational Manager");
   });
 
   it("escapes HTML special characters in user-provided text", () => {

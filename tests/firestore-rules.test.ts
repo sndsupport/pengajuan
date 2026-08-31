@@ -18,6 +18,7 @@ describe("firestore.rules", () => {
       await db.collection("users").doc("uid-snd").set({ role: "snd", branch: "SND", name: "Dewi Lestari" });
       await db.collection("users").doc("uid-spv").set({ role: "spv", branch: "WHO", name: "Siti Aminah" });
       await db.collection("users").doc("uid-spv2").set({ role: "spv", branch: "WHO", name: "Rudi Hartono" });
+      await db.collection("users").doc("uid-mgmt").set({ role: "management", branch: null, name: "Andi Wijaya" });
       await db.collection("submissions").doc("sub-1").set({ requesterId: "uid-admin", status: "diajukan" });
       await db.collection("submissions").doc("sub-1").collection("items").doc("item-1").set({
         itemName: "Toyota Avanza",
@@ -762,6 +763,266 @@ describe("firestore.rules", () => {
     it("denies a reviewer role from writing counters", async () => {
       const db = testEnv.authenticatedContext("uid-spv").firestore();
       await assertFails(db.collection("counters").doc("WHO-2026-11").set({ lastNumber: 1 }));
+    });
+  });
+
+  describe("personalia submissions — create rule", () => {
+    it("allows admin_cabang to create a lembur submission", async () => {
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("pers-1").set({
+          requesterId: "uid-admin",
+          status: "diajukan",
+          type: "personalia",
+          subType: "lembur",
+        })
+      );
+    });
+
+    it("denies spv from creating a lembur submission", async () => {
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("submissions").doc("pers-2").set({
+          requesterId: "uid-spv",
+          status: "diajukan",
+          type: "personalia",
+          subType: "lembur",
+        })
+      );
+    });
+
+    it("allows spv to create a cuti submission", async () => {
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("pers-3").set({
+          requesterId: "uid-spv",
+          status: "diajukan",
+          type: "personalia",
+          subType: "cuti",
+        })
+      );
+    });
+
+    it("allows spv to create an izin submission", async () => {
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("pers-4").set({
+          requesterId: "uid-spv",
+          status: "diajukan",
+          type: "personalia",
+          subType: "izin",
+        })
+      );
+    });
+
+    it("denies management from creating any personalia submission", async () => {
+      const db = testEnv.authenticatedContext("uid-mgmt").firestore();
+      await assertFails(
+        db.collection("submissions").doc("pers-5").set({
+          requesterId: "uid-mgmt",
+          status: "diajukan",
+          type: "personalia",
+          subType: "cuti",
+        })
+      );
+    });
+  });
+
+  describe("personalia submissions — dual approval transitions", () => {
+    async function seedPersonalia(id: string, overrides: Record<string, unknown> = {}) {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc(id).set({
+          requesterId: "uid-admin",
+          status: "diajukan",
+          type: "personalia",
+          subType: "cuti",
+          spvApproval: null,
+          managerApproval: null,
+          ...overrides,
+        });
+      });
+    }
+
+    it("allows spv to record a partial approval, status stays diajukan", async () => {
+      await seedPersonalia("pers-partial-1");
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("pers-partial-1").update({
+          spvApproval: { approverId: "uid-spv", approverName: "Siti Aminah", note: null, decidedAt: new Date() },
+        })
+      );
+    });
+
+    it("denies spv from also changing status during a partial approval", async () => {
+      await seedPersonalia("pers-partial-2");
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("submissions").doc("pers-partial-2").update({
+          status: "selesai",
+          spvApproval: { approverId: "uid-spv", approverName: "Siti Aminah", note: null, decidedAt: new Date() },
+        })
+      );
+    });
+
+    it("denies spv from writing management's approval field", async () => {
+      await seedPersonalia("pers-partial-3");
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("submissions").doc("pers-partial-3").update({
+          managerApproval: { approverId: "uid-spv", approverName: "Siti Aminah", note: null, decidedAt: new Date() },
+        })
+      );
+    });
+
+    it("denies a forged approverId in the partial approval", async () => {
+      await seedPersonalia("pers-partial-4");
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("submissions").doc("pers-partial-4").update({
+          spvApproval: { approverId: "uid-spv2", approverName: "Siti Aminah", note: null, decidedAt: new Date() },
+        })
+      );
+    });
+
+    it("allows management to complete the second approval, status becomes selesai", async () => {
+      await seedPersonalia("pers-final-1", {
+        spvApproval: { approverId: "uid-spv", approverName: "Siti Aminah", note: null, decidedAt: new Date() },
+      });
+      const db = testEnv.authenticatedContext("uid-mgmt").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("pers-final-1").update({
+          status: "selesai",
+          completedAt: new Date(),
+          managerApproval: { approverId: "uid-mgmt", approverName: "Andi Wijaya", note: null, decidedAt: new Date() },
+        })
+      );
+    });
+
+    it("denies completing to selesai when the other approval isn't present yet", async () => {
+      await seedPersonalia("pers-final-2");
+      const db = testEnv.authenticatedContext("uid-mgmt").firestore();
+      await assertFails(
+        db.collection("submissions").doc("pers-final-2").update({
+          status: "selesai",
+          completedAt: new Date(),
+          managerApproval: { approverId: "uid-mgmt", approverName: "Andi Wijaya", note: null, decidedAt: new Date() },
+        })
+      );
+    });
+
+    it("allows spv or management to reject a personalia submission via the existing reject rule", async () => {
+      await seedPersonalia("pers-reject-1");
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("pers-reject-1").update({
+          status: "perlu_revisi",
+          rejectionNote: "Periode cuti tidak jelas",
+        })
+      );
+    });
+
+    it("allows the owner to resubmit a rejected personalia submission, clearing approvals", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("pers-resubmit-1").set({
+          requesterId: "uid-admin",
+          status: "perlu_revisi",
+          type: "personalia",
+          subType: "cuti",
+          spvApproval: null,
+          managerApproval: null,
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("pers-resubmit-1").update({
+          status: "diajukan",
+          rejectionNote: null,
+          subType: "izin",
+          employeeName: "Rahmat Hidayat",
+          periodStart: "2026-09-10",
+          periodEnd: "2026-09-11",
+          spvApproval: null,
+          managerApproval: null,
+        })
+      );
+    });
+
+    it("denies a non-owner from resubmitting a personalia submission", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("pers-resubmit-2").set({
+          requesterId: "uid-admin",
+          status: "perlu_revisi",
+          type: "personalia",
+          subType: "cuti",
+          spvApproval: null,
+          managerApproval: null,
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-snd").firestore();
+      await assertFails(
+        db.collection("submissions").doc("pers-resubmit-2").update({
+          status: "diajukan",
+          rejectionNote: null,
+          subType: "cuti",
+          employeeName: "Rahmat Hidayat",
+          periodStart: "2026-09-10",
+          periodEnd: "2026-09-11",
+          spvApproval: null,
+          managerApproval: null,
+        })
+      );
+    });
+
+    it("denies an spv owner from resubmitting a rejected personalia submission as lembur", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("pers-resubmit-3").set({
+          requesterId: "uid-spv",
+          status: "perlu_revisi",
+          type: "personalia",
+          subType: "cuti",
+          spvApproval: null,
+          managerApproval: null,
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("submissions").doc("pers-resubmit-3").update({
+          status: "diajukan",
+          rejectionNote: null,
+          subType: "lembur",
+          employeeName: "Rahmat Hidayat",
+          periodStart: "2026-09-10",
+          periodEnd: "2026-09-11",
+          spvApproval: null,
+          managerApproval: null,
+        })
+      );
+    });
+
+    it("allows an spv owner to resubmit a rejected personalia submission as izin (still within cuti/izin)", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("pers-resubmit-4").set({
+          requesterId: "uid-spv",
+          status: "perlu_revisi",
+          type: "personalia",
+          subType: "cuti",
+          spvApproval: null,
+          managerApproval: null,
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("pers-resubmit-4").update({
+          status: "diajukan",
+          rejectionNote: null,
+          subType: "izin",
+          employeeName: "Rahmat Hidayat",
+          periodStart: "2026-09-10",
+          periodEnd: "2026-09-11",
+          spvApproval: null,
+          managerApproval: null,
+        })
+      );
     });
   });
 });

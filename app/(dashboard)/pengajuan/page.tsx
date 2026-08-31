@@ -12,10 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertCircle, ChevronRight, FileStack, Plus } from "lucide-react";
+import { TYPE_LABEL } from "@/lib/schemas/submission";
 
 type SubmissionRow = { id: string; submissionNumber: string; type: string; status: string };
-
-const TYPE_LABEL: Record<string, string> = { kendaraan: "Kendaraan", perlengkapan: "Perlengkapan" };
 
 export default function PengajuanListPage() {
   const { appUser } = useAuth();
