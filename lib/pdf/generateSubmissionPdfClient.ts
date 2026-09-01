@@ -5,26 +5,12 @@ import { buildSubmissionPdfHtml, SubmissionPdfData } from "./pdfTemplate";
 // resolution plugin for Vitest just for this one import.
 import { uploadToDriveClient } from "../drive-upload";
 
-const GOOGLE_FONTS_HREF =
-  "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&family=Public+Sans:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap";
-const GOOGLE_FONTS_LINK_ID = "pdf-google-fonts-link";
-
 const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297;
 const RENDER_WIDTH_PX = 794; // ~210mm at 96dpi, so the captured canvas maps cleanly onto an A4-width page
 
-function ensureGoogleFontsLinkInjected(): void {
-  if (!document.getElementById(GOOGLE_FONTS_LINK_ID)) {
-    const link = document.createElement("link");
-    link.id = GOOGLE_FONTS_LINK_ID;
-    link.rel = "stylesheet";
-    link.href = GOOGLE_FONTS_HREF;
-    document.head.appendChild(link);
-  }
-}
-
-function waitForImagesToLoad(container: HTMLElement): Promise<void> {
-  const images = Array.from(container.querySelectorAll("img"));
+function waitForImagesToLoad(doc: Document): Promise<void> {
+  const images = Array.from(doc.querySelectorAll("img"));
   return Promise.all(
     images.map(
       (img) =>
@@ -79,21 +65,42 @@ export function computePdfPageSlices(
 export type GenerateSubmissionPdfResult = { pdfUrl: string };
 
 export async function generateSubmissionPdfClient(data: SubmissionPdfData): Promise<GenerateSubmissionPdfResult> {
-  ensureGoogleFontsLinkInjected();
+  // Rendered inside an isolated iframe document rather than a div appended
+  // to the page: html2canvas clones the whole document to preserve stacking
+  // context, which means it also has to read computed styles for every
+  // element already on the page — including the app's own sidebar/cards/etc,
+  // all styled through this app's Tailwind tokens, which are oklch() colors
+  // (CSS Color 4) that html2canvas's parser can't read at all. That crashed
+  // PDF generation unconditionally (auto on approve, and the manual "Coba
+  // Generate PDF" retry), regardless of anything set on a div living inside
+  // that same document. An iframe gets its own document with no connection
+  // to the parent page's stylesheets, so html2canvas only ever sees the
+  // template's own hex-based <style> block.
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.left = "-10000px";
+  iframe.style.top = "0";
+  iframe.style.width = `${RENDER_WIDTH_PX}px`;
+  iframe.style.border = "none";
+  document.body.appendChild(iframe);
 
-  const container = document.createElement("div");
-  container.style.position = "fixed";
-  container.style.left = "-10000px";
-  container.style.top = "0";
-  container.style.width = `${RENDER_WIDTH_PX}px`;
-  container.innerHTML = buildSubmissionPdfHtml(data);
-  document.body.appendChild(container);
+  const iframeDoc = iframe.contentDocument;
+  if (!iframeDoc) {
+    document.body.removeChild(iframe);
+    throw new Error("Gagal menyiapkan dokumen render PDF.");
+  }
+  iframeDoc.open();
+  iframeDoc.write(buildSubmissionPdfHtml(data));
+  iframeDoc.close();
 
   try {
-    await document.fonts.ready;
-    await waitForImagesToLoad(container);
+    await iframeDoc.fonts.ready;
+    await waitForImagesToLoad(iframeDoc);
+    // The template's own body height is auto (grows with content); give the
+    // iframe's viewport the same height so html2canvas doesn't clip it.
+    iframe.style.height = `${iframeDoc.body.scrollHeight}px`;
 
-    const canvas = await html2canvas(container, { useCORS: true, scale: 2 });
+    const canvas = await html2canvas(iframeDoc.body, { useCORS: true, scale: 2, backgroundColor: "#ffffff" });
 
     const pdf = new jsPDF({ unit: "mm", format: "a4" });
     const slices = computePdfPageSlices(canvas.width, canvas.height, A4_WIDTH_MM, A4_HEIGHT_MM);
@@ -119,6 +126,6 @@ export async function generateSubmissionPdfClient(data: SubmissionPdfData): Prom
     const { fileUrl } = await uploadToDriveClient(pdfFile, "attachment");
     return { pdfUrl: fileUrl };
   } finally {
-    document.body.removeChild(container);
+    document.body.removeChild(iframe);
   }
 }

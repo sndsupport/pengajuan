@@ -46,6 +46,16 @@ describe("buildSubmissionPdfHtml", () => {
     expect(html).not.toContain("<th>KM</th>");
   });
 
+  it("renders a human-readable label for type gedung_fasilitas", () => {
+    const html = buildSubmissionPdfHtml({
+      ...baseData,
+      type: "gedung_fasilitas",
+      items: [{ itemName: "AC Ruang Meeting", brandType: "Daikin 1PK", km: null, quantity: 1, unit: "unit", description: "" }],
+    });
+    expect(html).toContain("Gedung & Fasilitas");
+    expect(html).not.toContain("undefined");
+  });
+
   it("includes both signature image URLs (HTML-escaped, since they're interpolated into an <img> attribute)", () => {
     const html = buildSubmissionPdfHtml(baseData);
     expect(html).toContain("https://drive.google.com/uc?export=view&amp;id=req-sig");

@@ -1,6 +1,7 @@
-const TYPE_LABEL: Record<"kendaraan" | "perlengkapan", string> = {
+const TYPE_LABEL: Record<"kendaraan" | "perlengkapan" | "gedung_fasilitas", string> = {
   kendaraan: "Kendaraan",
   perlengkapan: "Perlengkapan",
+  gedung_fasilitas: "Gedung & Fasilitas",
 };
 
 const APPROVER_ROLE_LABEL: Record<"spv" | "management", string> = {
@@ -19,7 +20,7 @@ export type SubmissionPdfItem = {
 
 export type SubmissionPdfData = {
   submissionNumber: string;
-  type: "kendaraan" | "perlengkapan";
+  type: "kendaraan" | "perlengkapan" | "gedung_fasilitas";
   subType: string;
   branch: string;
   department: string;
