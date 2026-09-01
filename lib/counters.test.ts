@@ -9,7 +9,24 @@ describe("getNextSubmissionNumber", () => {
   beforeEach(async () => {
     testEnv = await initializeTestEnvironment({
       projectId: "demo-pengajuan-client-counters-test",
-      firestore: { host: "127.0.0.1", port: 8080 },
+      firestore: {
+        host: "127.0.0.1",
+        port: 8080,
+        // This suite tests getNextSubmissionNumber's transaction logic in
+        // isolation, not the security rules (those are covered by the
+        // "counters rule" tests in tests/firestore-rules.test.ts), so it
+        // runs against an open ruleset rather than the real firestore.rules.
+        rules: `
+          rules_version = '2';
+          service cloud.firestore {
+            match /databases/{database}/documents {
+              match /{document=**} {
+                allow read, write: if true;
+              }
+            }
+          }
+        `,
+      },
     });
     await testEnv.clearFirestore();
   });

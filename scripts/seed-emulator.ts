@@ -6,7 +6,7 @@ import { usernameToSyntheticEmail } from "../lib/auth/username";
 process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
 process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
 
-const app = initializeApp({ projectId: "pengajuan-kendaraan-perlengkapan" });
+const app = initializeApp({ projectId: "sndsupportapps" });
 const auth = getAuth(app);
 const db = getFirestore(app);
 
