@@ -1,3 +1,4 @@
+// scripts/seed-emulator.ts
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
@@ -11,11 +12,16 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 const SEED_USERS = [
-  { username: "admin.who", email: "admin.who@example.com", password: "password123", name: "Admin WHO", role: "admin_cabang", branch: "WHO", department: "Operasional", position: "Admin Cabang" },
-  { username: "snd", email: "snd@example.com", password: "password123", name: "Staff SND", role: "snd", branch: "SND", department: "SND", position: "Staff" },
+  { username: "admin", email: "admin@example.com", password: "password123", name: "Admin", role: "admin", branch: null, department: "GA", position: "Admin" },
   { username: "spv", email: "spv@example.com", password: "password123", name: "AWS Supervisor", role: "spv", branch: null, department: "AWS", position: "Supervisor" },
   { username: "management", email: "management@example.com", password: "password123", name: "Management", role: "management", branch: null, department: "Management", position: "Manager" },
   { username: "superadmin", email: null, password: "password123", name: "Superadmin", role: "superadmin", branch: null, department: "IT", position: "Superadmin" },
+];
+
+const SEED_EMPLOYEES = [
+  { name: "Rahmat Hidayat", branch: "WHO", department: "Operasional", position: "Staff Gudang" },
+  { name: "Siti Aminah", branch: "WHP", department: "Operasional", position: "Staff Gudang" },
+  { name: "Dewi Lestari", branch: "SND", department: "SND", position: "Staff" },
 ];
 
 async function seed() {
@@ -36,6 +42,17 @@ async function seed() {
       createdAt: new Date(),
     });
     console.log(`Seeded ${u.username} (${u.role})`);
+  }
+
+  for (const e of SEED_EMPLOYEES) {
+    const ref = await db.collection("employees").add({
+      name: e.name,
+      branch: e.branch,
+      department: e.department,
+      position: e.position,
+      createdAt: new Date(),
+    });
+    console.log(`Seeded employee ${e.name} (${ref.id})`);
   }
 }
 
