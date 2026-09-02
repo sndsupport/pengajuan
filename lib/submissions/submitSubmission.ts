@@ -29,12 +29,18 @@ export async function submitSubmission(rawInput: unknown, caller: AppUser): Prom
 }
 
 async function createNewSubmission(input: CreateSubmissionInput, caller: AppUser): Promise<SubmitSubmissionResult> {
+  const employeeSnap = await getDoc(doc(db, "employees", input.employeeId));
+  const employee = employeeSnap.data();
+  if (!employee) {
+    throw new Error("Data pegawai tidak ditemukan.");
+  }
+
   // NOTE: unlike the old Cloud Function (server clock, trustworthy), this now runs
   // client-side — a misconfigured device clock/timezone could stamp the wrong
   // month/year on submissionNumber. Accepted risk: no cheap way to get a trusted
   // server time synchronously before the counter transaction without Cloud Functions.
   const now = new Date();
-  const submissionNumber = await getNextSubmissionNumber(db, caller.branch!, now.getFullYear(), now.getMonth() + 1);
+  const submissionNumber = await getNextSubmissionNumber(db, employee.branch, now.getFullYear(), now.getMonth() + 1);
 
   // Create the submission doc first (awaited, truly committed) BEFORE writing its
   // items/attachments/statusHistory in a batch — the items/attachments create rule
@@ -47,13 +53,15 @@ async function createNewSubmission(input: CreateSubmissionInput, caller: AppUser
     subType: input.subType,
     status: "diajukan",
     requesterId: caller.uid,
+    employeeId: input.employeeId,
+    employeeName: employee.name,
     requesterSignatureUrl: input.requesterSignatureUrl,
     approverId: null,
     approverRole: null,
     approverSignatureUrl: null,
-    branch: caller.branch,
-    department: caller.department,
-    position: caller.position,
+    branch: employee.branch,
+    department: employee.department,
+    position: employee.position,
     rejectionNote: null,
     pdfUrl: null,
     submittedAt: serverTimestamp(),
@@ -104,6 +112,12 @@ async function resubmitAfterRevisi(input: CreateSubmissionInput, caller: AppUser
     throw new Error("Hanya pengajuan berstatus perlu_revisi yang bisa direvisi.");
   }
 
+  const employeeSnap = await getDoc(doc(db, "employees", input.employeeId));
+  const employee = employeeSnap.data();
+  if (!employee) {
+    throw new Error("Data pegawai tidak ditemukan.");
+  }
+
   const existingItemsSnap = await getDocs(collection(submissionRef, "items"));
   const existingAttachmentsSnap = await getDocs(collection(submissionRef, "attachments"));
 
@@ -125,6 +139,11 @@ async function resubmitAfterRevisi(input: CreateSubmissionInput, caller: AppUser
   batch.update(submissionRef, {
     type: input.type,
     subType: input.subType,
+    employeeId: input.employeeId,
+    employeeName: employee.name,
+    branch: employee.branch,
+    department: employee.department,
+    position: employee.position,
     requesterSignatureUrl: input.requesterSignatureUrl,
     status: "diajukan",
     rejectionNote: null,
