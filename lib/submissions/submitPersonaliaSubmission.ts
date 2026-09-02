@@ -13,6 +13,32 @@ const ALLOWED_ROLES_BY_SUBTYPE: Record<CreatePersonaliaSubmissionInput["subType"
   izin: ["admin", "spv"],
 };
 
+async function resolveEmployeeContext(
+  input: CreatePersonaliaSubmissionInput,
+  caller: AppUser
+): Promise<{ branch: string; department: string; position: string }> {
+  if (input.employeeId) {
+    const employeeSnap = await getDoc(doc(db, "employees", input.employeeId));
+    const employee = employeeSnap.data();
+    if (!employee) {
+      throw new Error("Data pegawai tidak ditemukan.");
+    }
+    return { branch: employee.branch, department: employee.department, position: employee.position };
+  }
+
+  if (caller.role === "spv") {
+    // Self-submit path (spv submitting their own cuti/izin): every role's
+    // own branch is null under the centralized-admin model, and there's no
+    // employee record to pull a real one from. Fall back to a fixed label
+    // instead of leaking "null" into the submission number/counter key —
+    // this is a pre-existing gap (the old code silently passed a null
+    // branch via a non-null assertion), not new behavior introduced here.
+    return { branch: caller.branch ?? "HQ", department: caller.department, position: caller.position };
+  }
+
+  throw new Error("Pegawai wajib dipilih.");
+}
+
 export async function submitPersonaliaSubmission(
   rawInput: unknown,
   caller: AppUser
@@ -37,31 +63,7 @@ async function createNewSubmission(
   input: CreatePersonaliaSubmissionInput,
   caller: AppUser
 ): Promise<SubmitPersonaliaSubmissionResult> {
-  let branch = caller.branch;
-  let department = caller.department;
-  let position = caller.position;
-
-  if (input.employeeId) {
-    const employeeSnap = await getDoc(doc(db, "employees", input.employeeId));
-    const employee = employeeSnap.data();
-    if (!employee) {
-      throw new Error("Data pegawai tidak ditemukan.");
-    }
-    branch = employee.branch;
-    department = employee.department;
-    position = employee.position;
-  } else if (!branch) {
-    // Self-submit path (spv submitting their own cuti/izin): every role's
-    // own branch is null under the centralized-admin model, and there's no
-    // employee record to pull a real one from. Fall back to a fixed label
-    // instead of leaking "null" into the submission number/counter key —
-    // this is a pre-existing gap (the old code silently passed a null
-    // branch via a non-null assertion), not new behavior introduced here.
-    branch = "HQ";
-  }
-  if (!branch) {
-    throw new Error("Cabang tidak ditemukan untuk pengajuan ini.");
-  }
+  const { branch, department, position } = await resolveEmployeeContext(input, caller);
 
   const now = new Date();
   const submissionNumber = await getNextSubmissionNumber(db, branch, now.getFullYear(), now.getMonth() + 1);
@@ -130,31 +132,7 @@ async function resubmitAfterRevisi(
     throw new Error("Hanya pengajuan berstatus perlu_revisi yang bisa direvisi.");
   }
 
-  let branch = caller.branch;
-  let department = caller.department;
-  let position = caller.position;
-
-  if (input.employeeId) {
-    const employeeSnap = await getDoc(doc(db, "employees", input.employeeId));
-    const employee = employeeSnap.data();
-    if (!employee) {
-      throw new Error("Data pegawai tidak ditemukan.");
-    }
-    branch = employee.branch;
-    department = employee.department;
-    position = employee.position;
-  } else if (!branch) {
-    // Self-submit path (spv submitting their own cuti/izin): every role's
-    // own branch is null under the centralized-admin model, and there's no
-    // employee record to pull a real one from. Fall back to a fixed label
-    // instead of leaking "null" into the submission number/counter key —
-    // this is a pre-existing gap (the old code silently passed a null
-    // branch via a non-null assertion), not new behavior introduced here.
-    branch = "HQ";
-  }
-  if (!branch) {
-    throw new Error("Cabang tidak ditemukan untuk pengajuan ini.");
-  }
+  const { branch, department, position } = await resolveEmployeeContext(input, caller);
 
   const existingAttachmentsSnap = await getDocs(collection(submissionRef, "attachments"));
 
