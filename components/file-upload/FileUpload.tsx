@@ -16,11 +16,11 @@ const PURPOSE_CONFIG = {
     hint: "JPG, PNG, atau PDF · maks. 10MB",
   },
   signature: {
-    acceptedTypes: ["image/png"],
+    acceptedTypes: ["image/png", "image/jpeg"],
     maxSizeBytes: 2 * 1024 * 1024,
     maxSizeLabel: "2MB",
-    accept: "image/png",
-    hint: "PNG · maks. 2MB",
+    accept: "image/png,image/jpeg",
+    hint: "PNG atau JPG · maks. 2MB",
   },
 } as const;
 
