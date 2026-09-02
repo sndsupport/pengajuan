@@ -14,8 +14,8 @@ describe("firestore.rules", () => {
 
     await testEnv.withSecurityRulesDisabled(async (context) => {
       const db = context.firestore();
-      await db.collection("users").doc("uid-admin").set({ role: "admin_cabang", branch: "WHO", name: "Budi Santoso" });
-      await db.collection("users").doc("uid-snd").set({ role: "snd", branch: "SND", name: "Dewi Lestari" });
+      await db.collection("users").doc("uid-admin").set({ role: "admin", branch: "WHO", name: "Budi Santoso" });
+      await db.collection("users").doc("uid-snd").set({ role: "admin", branch: "SND", name: "Dewi Lestari" });
       await db.collection("users").doc("uid-spv").set({ role: "spv", branch: "WHO", name: "Siti Aminah" });
       await db.collection("users").doc("uid-spv2").set({ role: "spv", branch: "WHO", name: "Rudi Hartono" });
       await db.collection("users").doc("uid-mgmt").set({ role: "management", branch: null, name: "Andi Wijaya" });
@@ -60,14 +60,14 @@ describe("firestore.rules", () => {
   });
 
   describe("submissions create rule", () => {
-    it("allows an admin_cabang/snd user to create a submission as themselves in status diajukan", async () => {
+    it("allows an admin user to create a submission as themselves in status diajukan", async () => {
       const db = testEnv.authenticatedContext("uid-admin").firestore();
       await assertSucceeds(
         db.collection("submissions").doc("sub-new").set({ requesterId: "uid-admin", status: "diajukan" })
       );
     });
 
-    it("denies create when the caller's role is not admin_cabang/snd", async () => {
+    it("denies create when the caller's role is not admin", async () => {
       const db = testEnv.authenticatedContext("uid-spv").firestore();
       await assertFails(
         db.collection("submissions").doc("sub-new").set({ requesterId: "uid-spv", status: "diajukan" })
@@ -205,7 +205,7 @@ describe("firestore.rules", () => {
         db.collection("submissions").doc("sub-1").update({
           status: "disetujui",
           approverId: "uid-admin",
-          approverRole: "admin_cabang",
+          approverRole: "admin",
           approverSignatureUrl: "https://drive.google.com/uc?export=view&id=sig",
         })
       );
@@ -459,7 +459,7 @@ describe("firestore.rules", () => {
           status: "diajukan",
           note: null,
           actorId: "uid-admin",
-          actorRole: "admin_cabang",
+          actorRole: "admin",
         })
       );
     });
@@ -483,7 +483,7 @@ describe("firestore.rules", () => {
           status: "diajukan",
           note: null,
           actorId: "uid-snd",
-          actorRole: "admin_cabang",
+          actorRole: "admin",
         })
       );
     });
@@ -495,7 +495,7 @@ describe("firestore.rules", () => {
           status: "diajukan",
           note: null,
           actorId: "uid-snd",
-          actorRole: "snd",
+          actorRole: "admin",
         })
       );
     });
@@ -537,7 +537,7 @@ describe("firestore.rules", () => {
         db.collection("users").doc("uid-new").set({
           name: "User Baru",
           username: "user.baru",
-          role: "admin_cabang",
+          role: "admin",
           branch: "WHO",
           department: "Operasional",
           position: "Admin Cabang",
@@ -558,7 +558,7 @@ describe("firestore.rules", () => {
       await assertSucceeds(
         db.collection("users").doc("uid-admin").update({
           name: "Budi Santoso Updated",
-          role: "admin_cabang",
+          role: "admin",
           branch: "WHP",
           department: "Operasional",
           position: "Admin Cabang",
@@ -594,7 +594,7 @@ describe("firestore.rules", () => {
         db.collection("users").doc("uid-new2").set({
           name: "User Baru",
           username: "user.baru2",
-          role: "admin_cabang",
+          role: "admin",
           branch: "WHO",
           department: "Operasional",
           position: "Admin Cabang",
@@ -734,7 +734,7 @@ describe("firestore.rules", () => {
   });
 
   describe("counters rule", () => {
-    it("allows an admin_cabang/snd user to create a new counter at 1", async () => {
+    it("allows an admin user to create a new counter at 1", async () => {
       const db = testEnv.authenticatedContext("uid-admin").firestore();
       await assertSucceeds(db.collection("counters").doc("WHO-2026-09").set({ lastNumber: 1 }));
     });
@@ -767,7 +767,7 @@ describe("firestore.rules", () => {
   });
 
   describe("personalia submissions — create rule", () => {
-    it("allows admin_cabang to create a lembur submission", async () => {
+    it("allows admin to create a lembur submission", async () => {
       const db = testEnv.authenticatedContext("uid-admin").firestore();
       await assertSucceeds(
         db.collection("submissions").doc("pers-1").set({
@@ -1023,6 +1023,119 @@ describe("firestore.rules", () => {
           managerApproval: null,
         })
       );
+    });
+  });
+
+  describe("employees rules", () => {
+    it("allows admin to read employees", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("employees").doc("emp-1").set({
+          name: "Rahmat Hidayat",
+          branch: "WHO",
+          department: "Operasional",
+          position: "Staff Gudang",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(db.collection("employees").doc("emp-1").get());
+    });
+
+    it("allows superadmin to read employees", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("users").doc("uid-super").set({
+          role: "superadmin",
+          branch: null,
+          name: "Admin Utama",
+        });
+        await context.firestore().collection("employees").doc("emp-1").set({
+          name: "Rahmat Hidayat",
+          branch: "WHO",
+          department: "Operasional",
+          position: "Staff Gudang",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertSucceeds(db.collection("employees").doc("emp-1").get());
+    });
+
+    it("denies spv from reading employees", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("employees").doc("emp-1").set({
+          name: "Rahmat Hidayat",
+          branch: "WHO",
+          department: "Operasional",
+          position: "Staff Gudang",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(db.collection("employees").doc("emp-1").get());
+    });
+
+    it("denies admin from creating an employee", async () => {
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(
+        db.collection("employees").doc("emp-2").set({
+          name: "Siti Aminah",
+          branch: "WHP",
+          department: "Operasional",
+          position: "Staff Gudang",
+        })
+      );
+    });
+
+    it("allows superadmin to create an employee", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("users").doc("uid-super").set({
+          role: "superadmin",
+          branch: null,
+          name: "Admin Utama",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertSucceeds(
+        db.collection("employees").doc("emp-2").set({
+          name: "Siti Aminah",
+          branch: "WHP",
+          department: "Operasional",
+          position: "Staff Gudang",
+        })
+      );
+    });
+
+    it("allows superadmin to update an employee", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("users").doc("uid-super").set({
+          role: "superadmin",
+          branch: null,
+          name: "Admin Utama",
+        });
+        await context.firestore().collection("employees").doc("emp-1").set({
+          name: "Rahmat Hidayat",
+          branch: "WHO",
+          department: "Operasional",
+          position: "Staff Gudang",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertSucceeds(db.collection("employees").doc("emp-1").update({ position: "Kepala Gudang" }));
+    });
+
+    it("denies any client from deleting an employee", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("users").doc("uid-super").set({
+          role: "superadmin",
+          branch: null,
+          name: "Admin Utama",
+        });
+        await context.firestore().collection("employees").doc("emp-1").set({
+          name: "Rahmat Hidayat",
+          branch: "WHO",
+          department: "Operasional",
+          position: "Staff Gudang",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertFails(db.collection("employees").doc("emp-1").delete());
     });
   });
 });
