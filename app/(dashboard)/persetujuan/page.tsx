@@ -19,7 +19,7 @@ import { reviewPersonaliaSubmission } from "@/lib/submissions/reviewPersonaliaSu
 import { AlertCircle, Check, ClipboardCheck, X } from "lucide-react";
 import { TYPE_LABEL } from "@/lib/schemas/submission";
 
-type QueueRow = { id: string; submissionNumber: string; type: string; subType: string; branch: string };
+type QueueRow = { id: string; submissionNumber: string; type: string; subType: string; branch: string; employeeName: string };
 
 export default function PersetujuanPage() {
   const { appUser, loading } = useAuth();
@@ -54,6 +54,7 @@ export default function PersetujuanPage() {
             type: d.data().type,
             subType: d.data().subType,
             branch: d.data().branch,
+            employeeName: d.data().employeeName,
           }))
         );
       },
@@ -140,6 +141,7 @@ export default function PersetujuanPage() {
                   <CardHeader className="flex-row items-center justify-between space-y-0 border-b">
                     <div>
                       <p className="font-mono text-sm font-semibold">{row.submissionNumber}</p>
+                      <p className="text-sm font-medium">{row.employeeName || "-"}</p>
                       <p className="text-sm text-muted-foreground">
                         {TYPE_LABEL[row.type] ?? row.type} · {row.branch}
                       </p>
@@ -192,6 +194,7 @@ export default function PersetujuanPage() {
                 <CardHeader className="flex-row items-center justify-between space-y-0 border-b">
                   <div>
                     <p className="font-mono text-sm font-semibold">{row.submissionNumber}</p>
+                    <p className="text-sm font-medium">{row.employeeName || "-"}</p>
                     <p className="text-sm text-muted-foreground">
                       {TYPE_LABEL[row.type] ?? row.type} · {row.branch}
                     </p>
