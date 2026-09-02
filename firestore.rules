@@ -11,14 +11,20 @@ service cloud.firestore {
       return isSignedIn() && userRole() in ['spv', 'management', 'superadmin'];
     }
     function isRequesterRole() {
-      return isSignedIn() && userRole() in ['admin_cabang', 'snd'];
+      return isSignedIn() && userRole() == 'admin';
     }
 
     match /users/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || userRole() in ['spv', 'management', 'superadmin']);
       allow create, update: if isSignedIn()
         && userRole() == 'superadmin'
-        && request.resource.data.role in ['admin_cabang', 'snd', 'spv', 'management', 'superadmin'];
+        && request.resource.data.role in ['admin', 'spv', 'management', 'superadmin'];
+      allow delete: if false;
+    }
+
+    match /employees/{employeeId} {
+      allow read: if isSignedIn() && userRole() in ['admin', 'superadmin'];
+      allow create, update: if isSignedIn() && userRole() == 'superadmin';
       allow delete: if false;
     }
 
@@ -42,7 +48,7 @@ service cloud.firestore {
           && resource.data.status == 'perlu_revisi'
           && request.resource.data.status == 'diajukan'
           && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['type', 'subType', 'requesterSignatureUrl', 'status', 'rejectionNote']))
+            .hasOnly(['type', 'subType', 'employeeId', 'employeeName', 'branch', 'department', 'position', 'requesterSignatureUrl', 'status', 'rejectionNote']))
         ||
         // Review - approve: spv/management, status lama diajukan -> disetujui
         (userRole() in ['spv', 'management']
@@ -98,7 +104,7 @@ service cloud.firestore {
           && request.resource.data.managerApproval == null
           && (userRole() != 'spv' || request.resource.data.subType in ['cuti', 'izin'])
           && request.resource.data.diff(resource.data).affectedKeys()
-            .hasOnly(['subType', 'employeeName', 'periodStart', 'periodEnd', 'status', 'rejectionNote', 'spvApproval', 'managerApproval']))
+            .hasOnly(['subType', 'employeeId', 'employeeName', 'branch', 'department', 'position', 'periodStart', 'periodEnd', 'status', 'rejectionNote', 'spvApproval', 'managerApproval']))
         ||
         // Personalia partial approval: spv/management mengisi approval milik sendiri, status tetap diajukan
         (resource.data.type == 'personalia'
