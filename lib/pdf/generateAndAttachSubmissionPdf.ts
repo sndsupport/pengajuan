@@ -29,6 +29,9 @@ export async function generateAndAttachSubmissionPdf(
   }
 
   const itemsSnap = await getDocs(collection(submissionRef, "items"));
+  if (!submission.employeeName) {
+    throw new Error("Data pengaju tidak ditemukan.");
+  }
 
   const items: SubmissionPdfItem[] = itemsSnap.docs.map((d) => {
     const item = d.data();
