@@ -36,6 +36,7 @@ export const createSubmissionSchema = z
     submissionId: z.string().nullish(),
     type: submissionTypeSchema,
     subType: z.string(),
+    employeeId: z.string().min(1, "Pegawai wajib dipilih"),
     requesterSignatureUrl: z.string().url(),
     items: z.array(itemSchema).min(1, "Minimal 1 item"),
     attachments: z.array(attachmentSchema).default([]),
@@ -105,6 +106,7 @@ export const createPersonaliaSubmissionSchema = z
   .object({
     submissionId: z.string().nullish(),
     subType: personaliaSubTypeSchema,
+    employeeId: z.string().nullish(),
     employeeName: z.string().min(1, "Nama karyawan wajib diisi"),
     periodStart: z.string().min(1, "Tanggal mulai wajib diisi"),
     periodEnd: z.string().min(1, "Tanggal selesai wajib diisi"),

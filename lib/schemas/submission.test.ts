@@ -14,6 +14,7 @@ describe("createSubmissionSchema", () => {
   const validPayload = {
     type: "kendaraan" as const,
     subType: "service_berkala" as const,
+    employeeId: "emp-1",
     requesterSignatureUrl: "https://storage.example.com/sig.png",
     items: [
       { itemName: "Toyota Avanza", brandType: "Toyota Avanza 1.3", km: 45000, quantity: 1, unit: "unit", description: "Service 40rb km" },
@@ -34,10 +35,16 @@ describe("createSubmissionSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("rejects a missing employeeId", () => {
+    const { employeeId, ...rest } = validPayload;
+    expect(createSubmissionSchema.safeParse(rest).success).toBe(false);
+  });
+
   it("allows km to be null for perlengkapan", () => {
     const payload = {
       type: "perlengkapan" as const,
       subType: "pengadaan_baru" as const,
+      employeeId: "emp-1",
       requesterSignatureUrl: "https://storage.example.com/sig.png",
       items: [{ itemName: "Kertas A4", brandType: "Sinar Dunia", km: null, quantity: 10, unit: "rim", description: "" }],
     };
@@ -93,6 +100,7 @@ describe("createSubmissionSchema — gedung_fasilitas", () => {
     const payload = {
       type: "gedung_fasilitas" as const,
       subType: "perbaikan" as const,
+      employeeId: "emp-1",
       requesterSignatureUrl: "https://storage.example.com/sig.png",
       items: [{ itemName: "AC ruang meeting", brandType: "Daikin 1PK", km: null, quantity: 1, unit: "unit", description: "Bocor freon" }],
     };
@@ -259,6 +267,11 @@ describe("createPersonaliaSubmissionSchema", () => {
 
   it("accepts a valid cuti payload", () => {
     expect(createPersonaliaSubmissionSchema.safeParse(validPayload).success).toBe(true);
+  });
+
+  it("accepts employeeId when provided (admin picking from master data)", () => {
+    const result = createPersonaliaSubmissionSchema.safeParse({ ...validPayload, employeeId: "emp-1" });
+    expect(result.success).toBe(true);
   });
 
   it("accepts lembur and izin as subType", () => {
