@@ -28,14 +28,7 @@ export async function generateAndAttachSubmissionPdf(
     throw new Error("Role approver pada pengajuan ini tidak valid.");
   }
 
-  const [itemsSnap, requesterSnap] = await Promise.all([
-    getDocs(collection(submissionRef, "items")),
-    getDoc(doc(db, "users", submission.requesterId)),
-  ]);
-  const requester = requesterSnap.data();
-  if (!requester) {
-    throw new Error("Data pengaju tidak ditemukan.");
-  }
+  const itemsSnap = await getDocs(collection(submissionRef, "items"));
 
   const items: SubmissionPdfItem[] = itemsSnap.docs.map((d) => {
     const item = d.data();
@@ -56,7 +49,7 @@ export async function generateAndAttachSubmissionPdf(
     branch: submission.branch,
     department: submission.department,
     position: submission.position,
-    requesterName: requester.name,
+    requesterName: submission.employeeName,
     requesterSignatureUrl: submission.requesterSignatureUrl,
     approverName: submission.approverName,
     approverRole: submission.approverRole,
