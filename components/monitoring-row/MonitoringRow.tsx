@@ -45,7 +45,7 @@ export function MonitoringRow({ submission }: { submission: MonitoringSubmission
           {submission.submissionNumber}
         </Link>
       </TableCell>
-      <TableCell>{submission.employeeName}</TableCell>
+      <TableCell>{submission.employeeName || "—"}</TableCell>
       <TableCell>{submission.branch}</TableCell>
       <TableCell>{TYPE_LABEL[submission.type] ?? submission.type}</TableCell>
       <TableCell>
