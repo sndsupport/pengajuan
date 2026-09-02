@@ -12,11 +12,10 @@ Aplikasi internal untuk PT Tridaya Sinergi Indonesia. Admin cabang (WHO, WHP) da
 
 | Role | Value di `users.role` | Bisa Mengajukan | Bisa Approve/Reject |
 | --- | --- | --- | --- |
-| Admin Cabang WHO/WHP | `admin_cabang` | Ya | Tidak |
-| SND | `snd` | Ya | Tidak |
-| AWS Supervisor | `spv` | Hanya kategori Personalia `cuti`/`izin` (lihat "Ekspansi One Gate" di bawah) | Ya |
+| Admin (terpusat) | `admin` | Ya, atas nama pegawai yang dipilih dari data master `employees` (lihat "Restrukturisasi Role Admin" di bawah) | Tidak |
+| AWS Supervisor | `spv` | Hanya kategori Personalia `cuti`/`izin` milik sendiri (lihat "Ekspansi One Gate" di bawah) | Ya |
 | Operational Manager | `management` | Tidak | Ya (backup, jika diperlukan) |
-| Superadmin | `superadmin` | Tidak | Tidak (kelola user & sistem, monitoring) |
+| Superadmin | `superadmin` | Tidak | Tidak (kelola user, data pegawai, & sistem, monitoring) |
 
 Catatan: value role di database tetap `management` — "Operational Manager" cuma label tampilan di UI (relabel dilakukan saat ekspansi One Gate, lihat di bawah).
 
@@ -65,8 +64,15 @@ users/{uid}
   name: string
   username: string                // dipakai untuk login, lihat lib/users/username.ts
   email: string | null
-  role: "admin_cabang" | "snd" | "spv" | "management" | "superadmin"
-  branch: "WHO" | "WHP" | "SND" | null
+  role: "admin" | "spv" | "management" | "superadmin"
+  branch: null                    // selalu null — semua role sekarang terpusat, lihat "Restrukturisasi Role Admin" di bawah
+  department: string
+  position: string
+  createdAt: Timestamp
+
+employees/{employeeId}            // data master, BUKAN akun login — dipilih admin saat membuat pengajuan
+  name: string
+  branch: "WHO" | "WHP" | "SND"
   department: string
   position: string
   createdAt: Timestamp
@@ -74,10 +80,12 @@ users/{uid}
 submissions/{submissionId}
   submissionNumber: string        // contoh format: "L.002/TSI-OPR/JB3-TNG/VIII/2026"
   type: "kendaraan" | "perlengkapan" | "gedung_fasilitas" | "personalia"
+  employeeId: string | null       // ref employees — null hanya untuk personalia yang di-self-submit spv
+  employeeName: string            // snapshot nama pemohon asli, dipakai untuk tampilan & PDF
   subType: string                 // kendaraan/perlengkapan/gedung_fasilitas: mis. "service_berkala", "pengadaan_baru", "perbaikan"
                                    // personalia: "lembur" | "cuti" | "izin"
   status: "diajukan" | "perlu_revisi" | "disetujui" | "siap_dikirim" | "on_proses_ga" | "selesai"
-  requesterId: string             // ref users
+  requesterId: string             // ref users — uid admin/spv yang membuat pengajuan, BUKAN si pemohon (lihat employeeId/employeeName)
   branch: string
   department: string
   position: string
@@ -97,7 +105,6 @@ submissions/{submissionId}
   sentToGaAt: Timestamp | null
 
   // Field khusus type "personalia" (dual approval, lihat "Ekspansi One Gate" di bawah):
-  employeeName: string
   periodStart: string             // "YYYY-MM-DD", dari <input type="date">
   periodEnd: string                // "YYYY-MM-DD"
   spvApproval: { approverId: string; approverName: string; note: string | null; decidedAt: Timestamp } | null
@@ -135,11 +142,11 @@ counters/{branchYearMonthKey}     // contoh doc id: "WHO-2026-08"
 ## Firestore Security Rules (garis besar)
 
 - `users/{uid}`: read oleh pemilik dokumen atau role `spv`/`management`/`superadmin`; create/update hanya oleh `superadmin`, dengan `role` divalidasi masuk enum yang sah (field ini dipakai helper `userRole()` di seluruh ruleset lain, jadi nilai tak valid berisiko merusak evaluasi rule lain); delete selalu ditolak.
-- `submissions/{id}`: create diizinkan kalau `role in ['admin_cabang','snd']` dan `requesterId == auth.uid` dengan status awal `diajukan`; read diizinkan kalau pemilik ATAU role in `['spv','management','superadmin']`. Update status dijaga per-transisi secara eksplisit di rules (resubmit setelah revisi, approve, reject, generate PDF, konfirmasi kirim ke GA, tandai selesai) — masing-masing punya syarat pelaku, status lama yang diizinkan, dan `hasOnly()` field yang boleh berubah. **Tidak ada Cloud Function di jalur ini** — rules-lah yang jadi satu-satunya penjaga.
+- `submissions/{id}`: create diizinkan kalau `role == 'admin'` dan `requesterId == auth.uid` dengan status awal `diajukan`; read diizinkan kalau pemilik ATAU role in `['spv','management','superadmin']`. Update status dijaga per-transisi secara eksplisit di rules (resubmit setelah revisi, approve, reject, generate PDF, konfirmasi kirim ke GA, tandai selesai) — masing-masing punya syarat pelaku, status lama yang diizinkan, dan `hasOnly()` field yang boleh berubah. **Tidak ada Cloud Function di jalur ini** — rules-lah yang jadi satu-satunya penjaga.
 - Personalia (`type == 'personalia'`) punya klausa create/update tambahan yang khusus scoped ke `type` ini (rules operasional untuk `kendaraan`/`perlengkapan`/`gedung_fasilitas` tidak diubah): create juga diizinkan untuk `spv` kalau `subType in ['cuti', 'izin']` (bukan `lembur`); update partial approval mengizinkan `spv`/`management` mengisi field approval miliknya sendiri (`spvApproval`/`managerApproval`) selama punya sendiri masih `null`, tanpa mengubah `status`; update final approval mengizinkan approver kedua mengubah `status` ke `selesai` sekaligus mengisi approval-nya, hanya kalau approval yang lain sudah terisi.
 - `submissions/{id}/statusHistory/*`: create diizinkan untuk pemilik/reviewer dengan `actorId`/`actorRole` yang harus cocok dengan caller (mencegah pemalsuan); update/delete selalu ditolak.
 - `submissions/{id}/items/*` dan `submissions/{id}/attachments/*`: create/delete hanya oleh pemilik selama status masih `diajukan`/`perlu_revisi`; update selalu ditolak (immutable, hapus-lalu-buat-ulang kalau perlu ganti).
-- `counters/{id}`: create hanya di angka 1, update hanya increment persis +1, hanya role `admin_cabang`/`snd` — mencegah lompatan nomor pengajuan.
+- `counters/{id}`: create hanya di angka 1, update hanya increment persis +1, hanya role `admin` — mencegah lompatan nomor pengajuan.
 - Simpan rules di `firestore.rules`, test pakai Firebase Emulator + `@firebase/rules-unit-testing` (`tests/firestore-rules.test.ts`) sebelum deploy — di mesin tanpa Java, test ini tidak bisa dijalankan lokal, jadi verifikasi manual (baca ulang logic rule vs test case) jadi pengganti sementara.
 
 ## Modul Client-side (`/lib`)
@@ -150,7 +157,7 @@ Pengganti apa yang sebelumnya jadi Cloud Functions callable — sekarang fungsi 
 | --- | --- | --- |
 | `lib/submissions/submitSubmission.ts` | Form Buat Pengajuan (`kendaraan`/`perlengkapan`/`gedung_fasilitas`) | Generate `submissionNumber` (transaction di `counters`), tulis submission + items + statusHistory dengan status `diajukan` |
 | `lib/submissions/reviewSubmission.ts` | Halaman Antrian Persetujuan (`spv`/`management`), alur operasional | Approve → set `disetujui` + data approver; reject → set `perlu_revisi` + `rejectionNote` wajib diisi |
-| `lib/submissions/submitPersonaliaSubmission.ts` | Form Buat Pengajuan, kategori Lembur/Cuti/Izin | Generate `submissionNumber`, tulis submission (field `employeeName`/`periodStart`/`periodEnd`) + 1 attachment + statusHistory; cek role vs `subType` (mis. `lembur` cuma untuk `admin_cabang`/`snd`, bukan `spv`) |
+| `lib/submissions/submitPersonaliaSubmission.ts` | Form Buat Pengajuan, kategori Lembur/Cuti/Izin | Generate `submissionNumber`, tulis submission (field `employeeName`/`periodStart`/`periodEnd`) + 1 attachment + statusHistory; cek role vs `subType` (mis. `lembur` cuma untuk `admin`, bukan `spv`) |
 | `lib/submissions/reviewPersonaliaSubmission.ts` | Halaman Antrian Persetujuan, submission `type: "personalia"` | Approve → isi `spvApproval`/`managerApproval` milik sendiri; kalau approval yang lain sudah ada, sekalian set status `selesai`. Reject → sama seperti alur operasional |
 | `lib/pdf/generateAndAttachSubmissionPdf.ts` + `lib/pdf/generateSubmissionPdfClient.ts` | Halaman detail pengajuan, setelah `disetujui` | Render PDF di browser (jsPDF + html2canvas), upload ke Google Drive, update `pdfUrl` + status `siap_dikirim` |
 | `lib/submissions/confirmSentToGa.ts` | Tombol "Sudah Dikirim" setelah copy template WA | Set status `on_proses_ga` |
@@ -180,13 +187,25 @@ Setelah migrasi Spark-plan selesai, sistem submissions diperluas jadi "one gate"
 - Role `management` di-relabel jadi "Operational Manager" di seluruh UI (nav, form admin, PDF) — value di database tetap `management`.
 - `lib/monitoring.ts` sudah toleran terhadap tahap yang dilewati (personalia langsung `diajukan` → `selesai`): kolom durasi tahap yang tidak ada history-nya otomatis render `"-"`, tidak perlu perubahan kode.
 
+## Restrukturisasi Role Admin (Admin Terpusat + Data Master Pegawai)
+
+Role `admin_cabang` (WHO/WHP) dan `snd` sudah dihapus, digantikan satu role `admin` terpusat (branch `null`, sama seperti `spv`/`management`/`superadmin`). Staf cabang tidak lagi punya akun di app — mereka mengirim permintaan ke admin di luar app (WA/dsb), admin memfilter manual, lalu menginput pengajuan atas nama pegawai yang dipilih dari koleksi `employees` (data master, dikelola superadmin lewat `/admin/pegawai`, bukan akun login).
+
+`requesterId` pada submission tetap uid admin (dipakai untuk ownership di alur retry PDF/konfirmasi GA/tandai selesai — semua tetap dilakukan admin). `employeeId`+`employeeName` menyimpan identitas pemohon asli, didenormalisasi saat submission dibuat dari data `employees`. `branch`/`department`/`position` pada submission ikut diambil dari `employees`, bukan dari profil admin.
+
+Tanda tangan pemohon sekarang selalu diupload (bukan digambar di app) lewat toggle "Upload File" yang sudah ada di form (`FileUpload` dengan `purpose="signature"`, menerima PNG dan JPEG) — karena pemohon mengirim tanda tangannya sendiri lewat foto/scan ke admin.
+
+Role `spv` yang submit personalia `cuti`/`izin` untuk dirinya sendiri tidak terpengaruh — jalur itu tetap sama seperti sebelumnya (tanpa `employeeId`, `employeeName` tetap teks bebas). Karena `spv` juga tidak punya `branch` (selalu `null` di bawah model admin terpusat), jalur self-submit ini fallback ke `branch: "HQ"` kalau `caller.branch` kosong, biar nomor pengajuan/counter key tidak kebawa nilai `null` (lihat `resolveEmployeeContext` di `lib/submissions/submitPersonaliaSubmission.ts`).
+
+Detail lengkap: `docs/superpowers/specs/2026-09-02-admin-terpusat-data-pegawai-design.md`.
+
 ## Struktur Folder
 
 ```
 /app
   /(auth)/login
   /(dashboard)
-    /pengajuan          # list & buat pengajuan (admin_cabang, snd)
+    /pengajuan          # list & buat pengajuan (admin)
     /persetujuan        # antrian approve (spv, management)
     /monitoring          # dashboard semua pengajuan
     /admin               # manajemen user & pengaturan (superadmin)
