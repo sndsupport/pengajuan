@@ -17,18 +17,11 @@ import { PageHeader } from "@/components/page-header/PageHeader";
 import { AlertCircle, Eye, EyeOff } from "lucide-react";
 
 const ROLE_OPTIONS = [
-  { value: "admin_cabang", label: "Admin Cabang" },
-  { value: "snd", label: "SND" },
+  { value: "admin", label: "Admin" },
   { value: "spv", label: "AWS Supervisor" },
   { value: "management", label: "Operational Manager" },
   { value: "superadmin", label: "Superadmin" },
 ] as const;
-
-function defaultBranchForRole(role: CreateUserInput["role"]): CreateUserInput["branch"] {
-  if (role === "admin_cabang") return "WHO";
-  if (role === "snd") return "SND";
-  return null;
-}
 
 export default function NewUserPage() {
   const { appUser, loading } = useAuth();
@@ -45,8 +38,6 @@ export default function NewUserPage() {
   const {
     register,
     handleSubmit,
-    watch,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<z.input<typeof createUserSchema>, unknown, CreateUserInput>({
     resolver: zodResolver(createUserSchema),
@@ -54,21 +45,15 @@ export default function NewUserPage() {
       name: "",
       username: "",
       password: "",
-      role: "admin_cabang",
-      branch: "WHO",
+      role: "admin",
+      branch: null,
       department: "",
       position: "",
       email: "",
     },
   });
 
-  const selectedRole = watch("role");
   const roleField = register("role");
-
-  function handleRoleChange(event: React.ChangeEvent<HTMLSelectElement>) {
-    roleField.onChange(event);
-    setValue("branch", defaultBranchForRole(event.target.value as CreateUserInput["role"]));
-  }
 
   async function onSubmit(data: CreateUserInput) {
     if (!appUser) return;
@@ -148,27 +133,15 @@ export default function NewUserPage() {
               )}
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="role">Role</Label>
-                <NativeSelect id="role" {...roleField} onChange={handleRoleChange}>
-                  {ROLE_OPTIONS.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </div>
-
-              {selectedRole === "admin_cabang" && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="branch">Cabang</Label>
-                  <NativeSelect id="branch" {...register("branch")}>
-                    <option value="WHO">WHO</option>
-                    <option value="WHP">WHP</option>
-                  </NativeSelect>
-                </div>
-              )}
+            <div className="space-y-1.5">
+              <Label htmlFor="role">Role</Label>
+              <NativeSelect id="role" {...roleField}>
+                {ROLE_OPTIONS.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </NativeSelect>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">

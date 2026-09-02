@@ -19,18 +19,11 @@ import { PageHeader } from "@/components/page-header/PageHeader";
 import { AlertCircle } from "lucide-react";
 
 const ROLE_OPTIONS = [
-  { value: "admin_cabang", label: "Admin Cabang" },
-  { value: "snd", label: "SND" },
+  { value: "admin", label: "Admin" },
   { value: "spv", label: "AWS Supervisor" },
   { value: "management", label: "Operational Manager" },
   { value: "superadmin", label: "Superadmin" },
 ] as const;
-
-function defaultBranchForRole(role: UpdateUserInput["role"]): UpdateUserInput["branch"] {
-  if (role === "admin_cabang") return "WHO";
-  if (role === "snd") return "SND";
-  return null;
-}
 
 function EditUserContent() {
   const searchParams = useSearchParams();
@@ -46,13 +39,11 @@ function EditUserContent() {
   const {
     register,
     handleSubmit,
-    watch,
-    setValue,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<z.input<typeof updateUserSchema>, unknown, UpdateUserInput>({
     resolver: zodResolver(updateUserSchema),
-    defaultValues: { uid: uid ?? "", name: "", role: "admin_cabang", branch: "WHO", department: "", position: "", email: "" },
+    defaultValues: { uid: uid ?? "", name: "", role: "admin", branch: null, department: "", position: "", email: "" },
   });
 
   useEffect(() => {
@@ -104,13 +95,7 @@ function EditUserContent() {
     };
   }, [uid, reset]);
 
-  const selectedRole = watch("role");
   const roleField = register("role");
-
-  function handleRoleChange(event: React.ChangeEvent<HTMLSelectElement>) {
-    roleField.onChange(event);
-    setValue("branch", defaultBranchForRole(event.target.value as UpdateUserInput["role"]));
-  }
 
   async function onSubmit(data: UpdateUserInput) {
     if (!appUser) return;
@@ -153,27 +138,15 @@ function EditUserContent() {
               )}
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="role">Role</Label>
-                <NativeSelect id="role" {...roleField} onChange={handleRoleChange}>
-                  {ROLE_OPTIONS.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </div>
-
-              {selectedRole === "admin_cabang" && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="branch">Cabang</Label>
-                  <NativeSelect id="branch" {...register("branch")}>
-                    <option value="WHO">WHO</option>
-                    <option value="WHP">WHP</option>
-                  </NativeSelect>
-                </div>
-              )}
+            <div className="space-y-1.5">
+              <Label htmlFor="role">Role</Label>
+              <NativeSelect id="role" {...roleField}>
+                {ROLE_OPTIONS.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </NativeSelect>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
