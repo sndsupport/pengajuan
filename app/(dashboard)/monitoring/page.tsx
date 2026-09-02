@@ -19,7 +19,7 @@ export default function MonitoringPage() {
   useEffect(() => {
     if (!appUser) return;
 
-    const isRequesterRole = appUser.role === "admin_cabang" || appUser.role === "snd";
+    const isRequesterRole = appUser.role === "admin";
     const q = isRequesterRole
       ? query(collection(db, "submissions"), where("requesterId", "==", appUser.uid), orderBy("submittedAt", "desc"))
       : query(collection(db, "submissions"), orderBy("submittedAt", "desc"));
