@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ClipboardCheck, FileStack, LayoutDashboard, Users } from "lucide-react";
+import { ClipboardCheck, Contact, FileStack, LayoutDashboard, Users } from "lucide-react";
 import type { AppUser } from "@/lib/hooks/useAuth";
 
 export type NavItem = {
@@ -14,7 +14,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/pengajuan",
     label: "Pengajuan Saya",
     icon: FileStack,
-    roles: ["admin_cabang", "snd", "spv"],
+    roles: ["admin", "spv"],
   },
   {
     href: "/persetujuan",
@@ -26,7 +26,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/monitoring",
     label: "Monitoring",
     icon: LayoutDashboard,
-    roles: ["admin_cabang", "snd", "spv", "management", "superadmin"],
+    roles: ["admin", "spv", "management", "superadmin"],
   },
   {
     href: "/admin",
@@ -34,11 +34,16 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Users,
     roles: ["superadmin"],
   },
+  {
+    href: "/admin/pegawai",
+    label: "Data Pegawai",
+    icon: Contact,
+    roles: ["superadmin"],
+  },
 ];
 
 export const ROLE_LABEL: Record<AppUser["role"], string> = {
-  admin_cabang: "Admin Cabang",
-  snd: "SND",
+  admin: "Admin",
   spv: "AWS Supervisor",
   management: "Operational Manager",
   superadmin: "Superadmin",
