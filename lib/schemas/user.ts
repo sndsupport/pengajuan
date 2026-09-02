@@ -1,13 +1,11 @@
 import { z } from "zod";
 
-export const roleSchema = z.enum(["admin_cabang", "snd", "spv", "management", "superadmin"]);
+export const roleSchema = z.enum(["admin", "spv", "management", "superadmin"]);
 export type Role = z.infer<typeof roleSchema>;
 
 export const branchSchema = z.enum(["WHO", "WHP", "SND"]).nullable();
 
-export function isValidBranchForRole(role: Role, branch: string | null): boolean {
-  if (role === "admin_cabang") return branch === "WHO" || branch === "WHP";
-  if (role === "snd") return branch === "SND";
+export function isValidBranchForRole(_role: Role, branch: string | null): boolean {
   return branch === null;
 }
 

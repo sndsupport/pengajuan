@@ -2,19 +2,9 @@ import { describe, it, expect } from "vitest";
 import { createUserSchema, updateUserSchema, isValidBranchForRole } from "./user";
 
 describe("isValidBranchForRole", () => {
-  it("requires WHO or WHP for admin_cabang", () => {
-    expect(isValidBranchForRole("admin_cabang", "WHO")).toBe(true);
-    expect(isValidBranchForRole("admin_cabang", "WHP")).toBe(true);
-    expect(isValidBranchForRole("admin_cabang", "SND")).toBe(false);
-    expect(isValidBranchForRole("admin_cabang", null)).toBe(false);
-  });
-
-  it("requires SND for snd role", () => {
-    expect(isValidBranchForRole("snd", "SND")).toBe(true);
-    expect(isValidBranchForRole("snd", "WHO")).toBe(false);
-  });
-
-  it("requires null branch for spv/management/superadmin", () => {
+  it("requires null branch for every role", () => {
+    expect(isValidBranchForRole("admin", null)).toBe(true);
+    expect(isValidBranchForRole("admin", "WHO")).toBe(false);
     expect(isValidBranchForRole("spv", null)).toBe(true);
     expect(isValidBranchForRole("spv", "WHO")).toBe(false);
     expect(isValidBranchForRole("management", null)).toBe(true);
@@ -24,21 +14,21 @@ describe("isValidBranchForRole", () => {
 
 describe("createUserSchema", () => {
   const valid = {
-    name: "Admin WHO",
-    username: "admin.who",
+    name: "Admin Utama",
+    username: "admin",
     password: "password123",
-    role: "admin_cabang" as const,
-    branch: "WHO" as const,
-    department: "Operasional",
-    position: "Admin Cabang",
+    role: "admin" as const,
+    branch: null,
+    department: "GA",
+    position: "Admin",
   };
 
-  it("accepts a valid admin_cabang payload", () => {
+  it("accepts a valid admin payload", () => {
     expect(createUserSchema.safeParse(valid).success).toBe(true);
   });
 
-  it("rejects when branch doesn't match role", () => {
-    expect(createUserSchema.safeParse({ ...valid, branch: "SND" }).success).toBe(false);
+  it("rejects a non-null branch for admin", () => {
+    expect(createUserSchema.safeParse({ ...valid, branch: "WHO" }).success).toBe(false);
   });
 
   it("rejects a password shorter than 6 characters", () => {
@@ -70,11 +60,11 @@ describe("createUserSchema", () => {
 describe("updateUserSchema", () => {
   const valid = {
     uid: "abc",
-    name: "Admin WHO",
-    role: "admin_cabang" as const,
-    branch: "WHO" as const,
-    department: "Operasional",
-    position: "Admin Cabang",
+    name: "Admin Utama",
+    role: "admin" as const,
+    branch: null,
+    department: "GA",
+    position: "Admin",
   };
 
   it("accepts a valid payload without username or password fields", () => {
@@ -87,7 +77,7 @@ describe("updateUserSchema", () => {
     expect(result.success && "username" in result.data).toBe(false);
   });
 
-  it("rejects mismatched branch/role", () => {
-    expect(updateUserSchema.safeParse({ ...valid, role: "snd", branch: "WHO" }).success).toBe(false);
+  it("rejects a non-null branch for admin", () => {
+    expect(updateUserSchema.safeParse({ ...valid, branch: "WHO" }).success).toBe(false);
   });
 });
