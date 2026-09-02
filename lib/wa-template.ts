@@ -3,6 +3,7 @@ export type WaTemplateSubmission = {
   type: string;
   subType: string;
   branch: string;
+  employeeName: string;
   pdfUrl: string;
 };
 
@@ -12,6 +13,7 @@ export function buildWaTemplate(submission: WaTemplateSubmission, requesterName:
 No. Pengajuan: ${submission.submissionNumber}
 Jenis: ${submission.type} (${submission.subType})
 Cabang: ${submission.branch}
+Nama Pemohon: ${submission.employeeName}
 Pengaju: ${requesterName}
 
 Dokumen: ${submission.pdfUrl}

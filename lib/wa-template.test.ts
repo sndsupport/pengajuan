@@ -7,6 +7,7 @@ describe("buildWaTemplate", () => {
     type: "kendaraan",
     subType: "service_berkala",
     branch: "WHO",
+    employeeName: "Siti Aminah",
     pdfUrl: "https://drive.google.com/file/d/pdf-1/view",
   };
 
@@ -26,6 +27,10 @@ describe("buildWaTemplate", () => {
 
   it("includes the requester name", () => {
     expect(buildWaTemplate(submission, "Budi Santoso")).toContain("Budi Santoso");
+  });
+
+  it("includes the employee name", () => {
+    expect(buildWaTemplate(submission, "Budi Santoso")).toContain("Siti Aminah");
   });
 
   it("includes the pdf link", () => {

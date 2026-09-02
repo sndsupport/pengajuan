@@ -92,6 +92,7 @@ function PengajuanDetailContent() {
         type: submission.type,
         subType: submission.subType,
         branch: submission.branch,
+        employeeName: submission.employeeName,
         pdfUrl: submission.pdfUrl,
       },
       appUser.name
@@ -265,6 +266,7 @@ function PengajuanDetailContent() {
                       type: submission.type,
                       subType: submission.subType,
                       branch: submission.branch,
+                      employeeName: submission.employeeName,
                       pdfUrl: submission.pdfUrl,
                     },
                     appUser.name
