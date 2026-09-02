@@ -24,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { SignaturePad } from "@/components/signature-pad/SignaturePad";
 import { FileUpload } from "@/components/file-upload/FileUpload";
+import { EmployeePicker } from "@/components/employee-picker/EmployeePicker";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { submitSubmission } from "@/lib/submissions/submitSubmission";
 import { submitPersonaliaSubmission } from "@/lib/submissions/submitPersonaliaSubmission";
@@ -43,9 +44,9 @@ const CATEGORY_OPTIONS: { value: Category; label: string }[] = [
 ];
 
 const PERSONALIA_ALLOWED_ROLES: Record<"lembur" | "cuti" | "izin", AppUser["role"][]> = {
-  lembur: ["admin_cabang", "snd"],
-  cuti: ["admin_cabang", "snd", "spv"],
-  izin: ["admin_cabang", "snd", "spv"],
+  lembur: ["admin"],
+  cuti: ["admin", "spv"],
+  izin: ["admin", "spv"],
 };
 
 function categoryOptionsForRole(role: AppUser["role"] | undefined): typeof CATEGORY_OPTIONS {
@@ -88,6 +89,7 @@ export default function NewPengajuanPage() {
       submissionId: resubmitId,
       type: "kendaraan",
       subType: "service_berkala",
+      employeeId: "",
       requesterSignatureUrl: "",
       items: [{ itemName: "", brandType: "", km: null, quantity: 1, unit: "", description: "" }],
       attachments: [],
@@ -106,6 +108,7 @@ export default function NewPengajuanPage() {
     defaultValues: {
       submissionId: resubmitId,
       subType: "cuti",
+      employeeId: null,
       employeeName: "",
       periodStart: "",
       periodEnd: "",
@@ -166,6 +169,7 @@ export default function NewPengajuanPage() {
           resetPersonalia({
             submissionId: id,
             subType: submissionData.subType,
+            employeeId: submissionData.employeeId ?? null,
             employeeName: submissionData.employeeName ?? "",
             periodStart: submissionData.periodStart ?? "",
             periodEnd: submissionData.periodEnd ?? "",
@@ -211,6 +215,7 @@ export default function NewPengajuanPage() {
           submissionId: id,
           type: submissionData?.type ?? "kendaraan",
           subType: submissionData?.subType ?? "service_berkala",
+          employeeId: submissionData?.employeeId ?? "",
           requesterSignatureUrl: "",
           items:
             items.length > 0
@@ -302,13 +307,25 @@ export default function NewPengajuanPage() {
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5 sm:col-span-2">
-                <Label htmlFor="employeeName">Nama Karyawan</Label>
-                <Input
-                  id="employeeName"
-                  aria-invalid={!!personaliaErrors.employeeName}
-                  aria-describedby={personaliaErrors.employeeName ? "employeeName-error" : undefined}
-                  {...registerPersonalia("employeeName")}
-                />
+                {appUser?.role === "admin" ? (
+                  <EmployeePicker
+                    value={watchPersonalia("employeeId")}
+                    onSelect={(employee) => {
+                      setValuePersonalia("employeeId", employee?.id ?? null);
+                      setValuePersonalia("employeeName", employee?.name ?? "");
+                    }}
+                  />
+                ) : (
+                  <>
+                    <Label htmlFor="employeeName">Nama Karyawan</Label>
+                    <Input
+                      id="employeeName"
+                      aria-invalid={!!personaliaErrors.employeeName}
+                      aria-describedby={personaliaErrors.employeeName ? "employeeName-error" : undefined}
+                      {...registerPersonalia("employeeName")}
+                    />
+                  </>
+                )}
                 {personaliaErrors.employeeName && (
                   <p id="employeeName-error" className="text-sm text-destructive">
                     {personaliaErrors.employeeName.message}
@@ -392,6 +409,19 @@ export default function NewPengajuanPage() {
         </form>
       ) : (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-4 w-4 text-primary" />
+                Pegawai
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <EmployeePicker value={watch("employeeId")} onSelect={(employee) => setValue("employeeId", employee?.id ?? "")} />
+              {errors.employeeId && <p className="text-sm text-destructive">{errors.employeeId.message}</p>}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
