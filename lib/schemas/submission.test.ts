@@ -36,6 +36,7 @@ describe("createSubmissionSchema", () => {
   });
 
   it("rejects a missing employeeId", () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- employeeId is destructured off only to omit it from `rest`
     const { employeeId, ...rest } = validPayload;
     expect(createSubmissionSchema.safeParse(rest).success).toBe(false);
   });
