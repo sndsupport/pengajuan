@@ -8,9 +8,9 @@ import type { AppUser } from "@/lib/hooks/useAuth";
 export type SubmitPersonaliaSubmissionResult = { submissionId: string; submissionNumber: string; status: "diajukan" };
 
 const ALLOWED_ROLES_BY_SUBTYPE: Record<CreatePersonaliaSubmissionInput["subType"], AppUser["role"][]> = {
-  lembur: ["admin_cabang", "snd"],
-  cuti: ["admin_cabang", "snd", "spv"],
-  izin: ["admin_cabang", "snd", "spv"],
+  lembur: ["admin"],
+  cuti: ["admin", "spv"],
+  izin: ["admin", "spv"],
 };
 
 export async function submitPersonaliaSubmission(
@@ -37,8 +37,26 @@ async function createNewSubmission(
   input: CreatePersonaliaSubmissionInput,
   caller: AppUser
 ): Promise<SubmitPersonaliaSubmissionResult> {
+  let branch = caller.branch;
+  let department = caller.department;
+  let position = caller.position;
+
+  if (input.employeeId) {
+    const employeeSnap = await getDoc(doc(db, "employees", input.employeeId));
+    const employee = employeeSnap.data();
+    if (!employee) {
+      throw new Error("Data pegawai tidak ditemukan.");
+    }
+    branch = employee.branch;
+    department = employee.department;
+    position = employee.position;
+  }
+  if (!branch) {
+    throw new Error("Cabang tidak ditemukan untuk pengajuan ini.");
+  }
+
   const now = new Date();
-  const submissionNumber = await getNextSubmissionNumber(db, caller.branch!, now.getFullYear(), now.getMonth() + 1);
+  const submissionNumber = await getNextSubmissionNumber(db, branch, now.getFullYear(), now.getMonth() + 1);
 
   // Same ordering rationale as submitSubmission.ts: the submission doc is created
   // and awaited before the batch, because the attachments subcollection's create
@@ -51,14 +69,15 @@ async function createNewSubmission(
     subType: input.subType,
     status: "diajukan",
     requesterId: caller.uid,
+    employeeId: input.employeeId ?? null,
     employeeName: input.employeeName,
     periodStart: input.periodStart,
     periodEnd: input.periodEnd,
     spvApproval: null,
     managerApproval: null,
-    branch: caller.branch,
-    department: caller.department,
-    position: caller.position,
+    branch,
+    department,
+    position,
     rejectionNote: null,
     submittedAt: serverTimestamp(),
     reviewedAt: null,
@@ -103,6 +122,24 @@ async function resubmitAfterRevisi(
     throw new Error("Hanya pengajuan berstatus perlu_revisi yang bisa direvisi.");
   }
 
+  let branch = caller.branch;
+  let department = caller.department;
+  let position = caller.position;
+
+  if (input.employeeId) {
+    const employeeSnap = await getDoc(doc(db, "employees", input.employeeId));
+    const employee = employeeSnap.data();
+    if (!employee) {
+      throw new Error("Data pegawai tidak ditemukan.");
+    }
+    branch = employee.branch;
+    department = employee.department;
+    position = employee.position;
+  }
+  if (!branch) {
+    throw new Error("Cabang tidak ditemukan untuk pengajuan ini.");
+  }
+
   const existingAttachmentsSnap = await getDocs(collection(submissionRef, "attachments"));
 
   const batch = writeBatch(db);
@@ -111,7 +148,11 @@ async function resubmitAfterRevisi(
   batch.set(attachmentRef, { ...input.attachment, uploadedAt: serverTimestamp() });
   batch.update(submissionRef, {
     subType: input.subType,
+    employeeId: input.employeeId ?? null,
     employeeName: input.employeeName,
+    branch,
+    department,
+    position,
     periodStart: input.periodStart,
     periodEnd: input.periodEnd,
     status: "diajukan",
