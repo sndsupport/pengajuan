@@ -95,7 +95,8 @@ export function buildSubmissionPdfHtml(data: SubmissionPdfData): string {
   th { background: #f3f4f6; font-family: 'Plus Jakarta Sans', Arial, sans-serif; }
   .signatures { display: flex; justify-content: space-between; margin-top: 40px; }
   .signature-block { width: 45%; text-align: center; }
-  .signature-block img { max-height: 60px; margin: 8px 0; }
+  .signature-img-box { width: 180px; height: 60px; margin: 8px auto; display: flex; align-items: center; justify-content: center; }
+  .signature-img-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
   .signature-line { border-top: 1px solid #1f2937; margin-top: 4px; padding-top: 4px; }
   .footer { margin-top: 32px; font-size: 9px; color: #6b7280; text-align: center; }
 </style>
@@ -139,12 +140,12 @@ export function buildSubmissionPdfHtml(data: SubmissionPdfData): string {
   <div class="signatures">
     <div class="signature-block">
       <div>Pemohon</div>
-      <img src="${escapeHtml(data.requesterSignatureUrl)}" alt="Tanda tangan pemohon" />
+      <div class="signature-img-box"><img src="${escapeHtml(data.requesterSignatureUrl)}" alt="Tanda tangan pemohon" /></div>
       <div class="signature-line">${escapeHtml(data.requesterName)}</div>
     </div>
     <div class="signature-block">
       <div>Mengetahui</div>
-      <img src="${escapeHtml(data.approverSignatureUrl)}" alt="Tanda tangan approver" />
+      <div class="signature-img-box"><img src="${escapeHtml(data.approverSignatureUrl)}" alt="Tanda tangan approver" /></div>
       <div class="signature-line">${escapeHtml(data.approverName)}<br/>${APPROVER_ROLE_LABEL[data.approverRole]}</div>
     </div>
   </div>
