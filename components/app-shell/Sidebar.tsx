@@ -33,6 +33,9 @@ export function Sidebar({
   const pathname = usePathname();
   const router = useRouter();
   const items = navItemsForRole(appUser.role);
+  const activeHref = items
+    .filter((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -89,7 +92,7 @@ export function Sidebar({
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {items.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const active = item.href === activeHref;
             const Icon = item.icon;
             return (
               <Link

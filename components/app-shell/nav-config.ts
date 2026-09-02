@@ -54,9 +54,9 @@ export function navItemsForRole(role: AppUser["role"]): NavItem[] {
 }
 
 export function pageTitleForPath(pathname: string): string {
-  const match = NAV_ITEMS.find(
+  const match = NAV_ITEMS.filter(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
-  );
+  ).sort((a, b) => b.href.length - a.href.length)[0];
   if (match) return match.label;
   if (pathname.startsWith("/admin/new")) return "Buat User";
   if (pathname.startsWith("/admin/edit")) return "Edit User";
