@@ -272,6 +272,9 @@ describe("createPersonaliaSubmissionSchema", () => {
   it("accepts employeeId when provided (admin picking from master data)", () => {
     const result = createPersonaliaSubmissionSchema.safeParse({ ...validPayload, employeeId: "emp-1" });
     expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.employeeId).toBe("emp-1");
+    }
   });
 
   it("accepts lembur and izin as subType", () => {
