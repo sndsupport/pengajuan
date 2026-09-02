@@ -6,7 +6,7 @@ Project brief ini untuk dibaca Claude Code (atau AI coding agent lain) sebagai k
 
 ## Ringkasan Bisnis
 
-Aplikasi internal untuk PT Tridaya Sinergi Indonesia. Admin cabang (WHO, WHP) dan SND mengajukan permintaan **Kendaraan** (mobil/motor) atau **Perlengkapan** (di luar ATK & rumah tangga kantor) ke AWS Supervisor (atau Management sebagai backup) untuk direview. Kalau disetujui, sistem generate PDF otomatis (mengikuti layout formulir GA yang sudah berjalan) lengkap dengan tanda tangan digital, lalu pengaju menyalin template pesan WA untuk dikirim manual ke GA. Status pengajuan dipantau lewat dashboard sampai pengaju menandai selesai setelah barang/layanan diterima.
+Aplikasi internal untuk PT Tridaya Sinergi Indonesia. Admin (role terpusat) mengajukan permintaan **Kendaraan** (mobil/motor) atau **Perlengkapan** (di luar ATK & rumah tangga kantor) atas nama pegawai cabang (WHO, WHP, SND) yang dipilih dari data master `employees` (lihat "Restrukturisasi Role Admin" di bawah) ke AWS Supervisor (atau Management sebagai backup) untuk direview. Kalau disetujui, sistem generate PDF otomatis (mengikuti layout formulir GA yang sudah berjalan) lengkap dengan tanda tangan digital, lalu pengaju menyalin template pesan WA untuk dikirim manual ke GA. Status pengajuan dipantau lewat dashboard sampai pengaju menandai selesai setelah barang/layanan diterima.
 
 ## User Roles
 
@@ -146,6 +146,7 @@ counters/{branchYearMonthKey}     // contoh doc id: "WHO-2026-08"
 - Personalia (`type == 'personalia'`) punya klausa create/update tambahan yang khusus scoped ke `type` ini (rules operasional untuk `kendaraan`/`perlengkapan`/`gedung_fasilitas` tidak diubah): create juga diizinkan untuk `spv` kalau `subType in ['cuti', 'izin']` (bukan `lembur`); update partial approval mengizinkan `spv`/`management` mengisi field approval miliknya sendiri (`spvApproval`/`managerApproval`) selama punya sendiri masih `null`, tanpa mengubah `status`; update final approval mengizinkan approver kedua mengubah `status` ke `selesai` sekaligus mengisi approval-nya, hanya kalau approval yang lain sudah terisi.
 - `submissions/{id}/statusHistory/*`: create diizinkan untuk pemilik/reviewer dengan `actorId`/`actorRole` yang harus cocok dengan caller (mencegah pemalsuan); update/delete selalu ditolak.
 - `submissions/{id}/items/*` dan `submissions/{id}/attachments/*`: create/delete hanya oleh pemilik selama status masih `diajukan`/`perlu_revisi`; update selalu ditolak (immutable, hapus-lalu-buat-ulang kalau perlu ganti).
+- `employees/{employeeId}`: read oleh role `admin`/`superadmin` (admin butuh baca untuk mengisi picker pegawai saat membuat pengajuan); create/update hanya oleh `superadmin`; delete selalu ditolak.
 - `counters/{id}`: create hanya di angka 1, update hanya increment persis +1, hanya role `admin` — mencegah lompatan nomor pengajuan.
 - Simpan rules di `firestore.rules`, test pakai Firebase Emulator + `@firebase/rules-unit-testing` (`tests/firestore-rules.test.ts`) sebelum deploy — di mesin tanpa Java, test ini tidak bisa dijalankan lokal, jadi verifikasi manual (baca ulang logic rule vs test case) jadi pengganti sementara.
 
