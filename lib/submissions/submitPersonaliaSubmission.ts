@@ -50,6 +50,14 @@ async function createNewSubmission(
     branch = employee.branch;
     department = employee.department;
     position = employee.position;
+  } else if (!branch) {
+    // Self-submit path (spv submitting their own cuti/izin): every role's
+    // own branch is null under the centralized-admin model, and there's no
+    // employee record to pull a real one from. Fall back to a fixed label
+    // instead of leaking "null" into the submission number/counter key —
+    // this is a pre-existing gap (the old code silently passed a null
+    // branch via a non-null assertion), not new behavior introduced here.
+    branch = "HQ";
   }
   if (!branch) {
     throw new Error("Cabang tidak ditemukan untuk pengajuan ini.");
@@ -135,6 +143,14 @@ async function resubmitAfterRevisi(
     branch = employee.branch;
     department = employee.department;
     position = employee.position;
+  } else if (!branch) {
+    // Self-submit path (spv submitting their own cuti/izin): every role's
+    // own branch is null under the centralized-admin model, and there's no
+    // employee record to pull a real one from. Fall back to a fixed label
+    // instead of leaking "null" into the submission number/counter key —
+    // this is a pre-existing gap (the old code silently passed a null
+    // branch via a non-null assertion), not new behavior introduced here.
+    branch = "HQ";
   }
   if (!branch) {
     throw new Error("Cabang tidak ditemukan untuk pengajuan ini.");
