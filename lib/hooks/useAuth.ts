@@ -10,7 +10,7 @@ export type AppUser = {
   name: string;
   username: string;
   email: string | null;
-  role: "admin_cabang" | "snd" | "spv" | "management" | "superadmin";
+  role: "admin" | "spv" | "management" | "superadmin";
   branch: string | null;
   department: string;
   position: string;
