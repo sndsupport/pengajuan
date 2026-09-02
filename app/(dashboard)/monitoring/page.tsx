@@ -67,7 +67,7 @@ export default function MonitoringPage() {
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead>No. Pengajuan</TableHead>
-                <TableHead>Pengaju</TableHead>
+                <TableHead>Untuk</TableHead>
                 <TableHead>Cabang</TableHead>
                 <TableHead>Jenis</TableHead>
                 <TableHead>Status</TableHead>
