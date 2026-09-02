@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertCircle, ChevronRight, FileStack, Plus } from "lucide-react";
 import { TYPE_LABEL } from "@/lib/schemas/submission";
 
-type SubmissionRow = { id: string; submissionNumber: string; type: string; status: string };
+type SubmissionRow = { id: string; submissionNumber: string; type: string; status: string; employeeName: string };
 
 export default function PengajuanListPage() {
   const router = useRouter();
@@ -40,6 +40,7 @@ export default function PengajuanListPage() {
             submissionNumber: d.data().submissionNumber,
             type: d.data().type,
             status: d.data().status,
+            employeeName: d.data().employeeName,
           }))
         );
       },
@@ -83,6 +84,7 @@ export default function PengajuanListPage() {
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead>No. Pengajuan</TableHead>
+                <TableHead>Untuk</TableHead>
                 <TableHead>Jenis</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-10" />
@@ -103,6 +105,7 @@ export default function PengajuanListPage() {
                       {row.submissionNumber}
                     </Link>
                   </TableCell>
+                  <TableCell>{row.employeeName || "-"}</TableCell>
                   <TableCell>{TYPE_LABEL[row.type] ?? row.type}</TableCell>
                   <TableCell>
                     <StatusBadge status={row.status} />
