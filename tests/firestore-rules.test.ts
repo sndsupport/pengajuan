@@ -760,9 +760,22 @@ describe("firestore.rules", () => {
       await assertFails(db.collection("counters").doc("WHO-2026-08").update({ lastNumber: 5 }));
     });
 
-    it("denies a reviewer role from writing counters", async () => {
-      const db = testEnv.authenticatedContext("uid-spv").firestore();
+    it("denies a reviewer role (other than spv) from writing counters", async () => {
+      const db = testEnv.authenticatedContext("uid-mgmt").firestore();
       await assertFails(db.collection("counters").doc("WHO-2026-11").set({ lastNumber: 1 }));
+    });
+
+    it("allows spv to read and write counters (self-submitting personalia)", async () => {
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(db.collection("counters").doc("HQ-2026-09").set({ lastNumber: 1 }));
+    });
+
+    it("allows spv to increment an existing counter by exactly 1", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("counters").doc("HQ-2026-08").set({ lastNumber: 1 });
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(db.collection("counters").doc("HQ-2026-08").update({ lastNumber: 2 }));
     });
   });
 

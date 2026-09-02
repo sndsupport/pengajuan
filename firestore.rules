@@ -14,6 +14,10 @@ service cloud.firestore {
       return isSignedIn() && userRole() == 'admin';
     }
 
+    function isCounterWriterRole() {
+      return isRequesterRole() || (isSignedIn() && userRole() == 'spv');
+    }
+
     match /users/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || userRole() in ['spv', 'management', 'superadmin']);
       allow create, update: if isSignedIn()
@@ -175,9 +179,9 @@ service cloud.firestore {
     }
 
     match /counters/{counterId} {
-      allow get: if isRequesterRole();
-      allow create: if isRequesterRole() && request.resource.data.lastNumber == 1;
-      allow update: if isRequesterRole() && request.resource.data.lastNumber == resource.data.lastNumber + 1;
+      allow get: if isCounterWriterRole();
+      allow create: if isCounterWriterRole() && request.resource.data.lastNumber == 1;
+      allow update: if isCounterWriterRole() && request.resource.data.lastNumber == resource.data.lastNumber + 1;
       allow delete: if false;
     }
   }
