@@ -49,9 +49,9 @@ describe("firestore.rules", () => {
     await assertSucceeds(db.collection("submissions").doc("sub-1").get());
   });
 
-  it("denies a non-owner, non-reviewer read", async () => {
+  it("allows any signed-in user (non-owner, non-reviewer) to read a submission", async () => {
     const db = testEnv.authenticatedContext("uid-snd").firestore();
-    await assertFails(db.collection("submissions").doc("sub-1").get());
+    await assertSucceeds(db.collection("submissions").doc("sub-1").get());
   });
 
   it("denies an unauthorized direct status change", async () => {
@@ -649,9 +649,9 @@ describe("firestore.rules", () => {
       await assertSucceeds(db.collection("submissions").doc("sub-1").collection("items").doc("item-1").get());
     });
 
-    it("denies a non-owner, non-reviewer from reading an item", async () => {
+    it("allows any signed-in user (non-owner, non-reviewer) to read an item", async () => {
       const db = testEnv.authenticatedContext("uid-snd").firestore();
-      await assertFails(db.collection("submissions").doc("sub-1").collection("items").doc("item-1").get());
+      await assertSucceeds(db.collection("submissions").doc("sub-1").collection("items").doc("item-1").get());
     });
 
     it("denies direct client update of an item", async () => {
@@ -718,9 +718,9 @@ describe("firestore.rules", () => {
       );
     });
 
-    it("denies a non-owner, non-reviewer from reading an attachment", async () => {
+    it("allows any signed-in user (non-owner, non-reviewer) to read an attachment", async () => {
       const db = testEnv.authenticatedContext("uid-snd").firestore();
-      await assertFails(
+      await assertSucceeds(
         db.collection("submissions").doc("sub-1").collection("attachments").doc("attachment-1").get()
       );
     });
@@ -863,6 +863,12 @@ describe("firestore.rules", () => {
         });
       });
     }
+
+    it("allows any signed-in user (non-owner, non-reviewer) to read a personalia submission", async () => {
+      await seedPersonalia("pers-read-1");
+      const db = testEnv.authenticatedContext("uid-snd").firestore();
+      await assertSucceeds(db.collection("submissions").doc("pers-read-1").get());
+    });
 
     it("allows spv to record a partial approval, status stays diajukan", async () => {
       await seedPersonalia("pers-partial-1");

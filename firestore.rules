@@ -42,7 +42,7 @@ service cloud.firestore {
             && request.resource.data.type == 'personalia'
             && request.resource.data.subType in ['cuti', 'izin'])
         );
-      allow read: if isSignedIn() && (resource.data.requesterId == request.auth.uid || isReviewer());
+      allow read: if isSignedIn();
 
       allow update: if isSignedIn()
         && request.resource.data.requesterId == resource.data.requesterId
@@ -150,8 +150,7 @@ service cloud.firestore {
       allow delete: if false;
 
       match /items/{itemId} {
-        allow read: if isSignedIn() &&
-          (get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid || isReviewer());
+        allow read: if isSignedIn();
         allow create, delete: if isSignedIn()
           && get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid
           && get(/databases/$(database)/documents/submissions/$(submissionId)).data.status in ['diajukan', 'perlu_revisi'];
@@ -159,8 +158,7 @@ service cloud.firestore {
       }
 
       match /statusHistory/{historyId} {
-        allow read: if isSignedIn() &&
-          (get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid || isReviewer());
+        allow read: if isSignedIn();
         allow create: if isSignedIn()
           && (get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid || isReviewer())
           && request.resource.data.actorId == request.auth.uid
@@ -169,8 +167,7 @@ service cloud.firestore {
       }
 
       match /attachments/{attachmentId} {
-        allow read: if isSignedIn() &&
-          (get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid || isReviewer());
+        allow read: if isSignedIn();
         allow create, delete: if isSignedIn()
           && get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid
           && get(/databases/$(database)/documents/submissions/$(submissionId)).data.status in ['diajukan', 'perlu_revisi'];

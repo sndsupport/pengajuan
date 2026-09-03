@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { MonitoringRow, MonitoringSubmission } from "@/components/monitoring-row/MonitoringRow";
@@ -19,10 +19,7 @@ export default function MonitoringPage() {
   useEffect(() => {
     if (!appUser) return;
 
-    const isRequesterRole = appUser.role === "admin";
-    const q = isRequesterRole
-      ? query(collection(db, "submissions"), where("requesterId", "==", appUser.uid), orderBy("submittedAt", "desc"))
-      : query(collection(db, "submissions"), orderBy("submittedAt", "desc"));
+    const q = query(collection(db, "submissions"), orderBy("submittedAt", "desc"));
 
     return onSnapshot(
       q,
