@@ -19,7 +19,17 @@ import { reviewPersonaliaSubmission } from "@/lib/submissions/reviewPersonaliaSu
 import { AlertCircle, Check, ClipboardCheck, X } from "lucide-react";
 import { TYPE_LABEL } from "@/lib/schemas/submission";
 
-type QueueRow = { id: string; submissionNumber: string; type: string; subType: string; branch: string; employeeName: string };
+type ApprovalRecord = { approverId: string; approverName: string } | null;
+type QueueRow = {
+  id: string;
+  submissionNumber: string;
+  type: string;
+  subType: string;
+  branch: string;
+  employeeName: string;
+  spvApproval: ApprovalRecord;
+  managerApproval: ApprovalRecord;
+};
 
 export default function PersetujuanPage() {
   const { appUser, loading } = useAuth();
@@ -55,6 +65,8 @@ export default function PersetujuanPage() {
             subType: d.data().subType,
             branch: d.data().branch,
             employeeName: d.data().employeeName,
+            spvApproval: d.data().spvApproval ?? null,
+            managerApproval: d.data().managerApproval ?? null,
           }))
         );
       },
@@ -136,6 +148,9 @@ export default function PersetujuanPage() {
         <div className="space-y-4">
           {rows.map((row) => {
             if (row.type === "personalia") {
+              const ownApproval = appUser?.role === "spv" ? row.spvApproval : row.managerApproval;
+              const otherApproval = appUser?.role === "spv" ? row.managerApproval : row.spvApproval;
+              const otherRoleLabel = appUser?.role === "spv" ? "Operational Manager" : "AWS Supervisor";
               return (
                 <Card key={row.id}>
                   <CardHeader className="flex-row items-center justify-between space-y-0 border-b">
@@ -149,15 +164,21 @@ export default function PersetujuanPage() {
                     <StatusBadge status="diajukan" />
                   </CardHeader>
                   <CardContent className="space-y-4 pt-6">
-                    <div className="space-y-1.5">
-                      <Label htmlFor={`note-${row.id}`}>Catatan (wajib jika tolak)</Label>
-                      <Textarea
-                        id={`note-${row.id}`}
-                        placeholder="Tulis catatan revisi di sini..."
-                        value={noteBySubmission[row.id] ?? ""}
-                        onChange={(e) => setNoteBySubmission((prev) => ({ ...prev, [row.id]: e.target.value }))}
-                      />
-                    </div>
+                    {ownApproval ? (
+                      <p className="text-sm text-muted-foreground">
+                        Anda sudah menyetujui pengajuan ini{otherApproval ? "" : `, menunggu ${otherRoleLabel}`}.
+                      </p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`note-${row.id}`}>Catatan (wajib jika tolak)</Label>
+                        <Textarea
+                          id={`note-${row.id}`}
+                          placeholder="Tulis catatan revisi di sini..."
+                          value={noteBySubmission[row.id] ?? ""}
+                          onChange={(e) => setNoteBySubmission((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                        />
+                      </div>
+                    )}
                     {actionErrorBySubmission[row.id] && (
                       <p role="alert" className="text-sm text-destructive">
                         {actionErrorBySubmission[row.id]}
@@ -166,7 +187,7 @@ export default function PersetujuanPage() {
                     <div className="flex gap-2 pt-1">
                       <Button
                         size="lg"
-                        disabled={busyId === row.id || !appUser}
+                        disabled={busyId === row.id || !appUser || !!ownApproval}
                         onClick={() => handlePersonaliaDecision(row.id, "approve")}
                       >
                         <Check className="h-4 w-4" />
@@ -175,7 +196,7 @@ export default function PersetujuanPage() {
                       <Button
                         size="lg"
                         variant="destructive"
-                        disabled={busyId === row.id || !appUser || !noteBySubmission[row.id]?.trim()}
+                        disabled={busyId === row.id || !appUser || !!ownApproval || !noteBySubmission[row.id]?.trim()}
                         onClick={() => handlePersonaliaDecision(row.id, "reject")}
                       >
                         <X className="h-4 w-4" />
