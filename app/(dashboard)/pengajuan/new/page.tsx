@@ -142,8 +142,17 @@ export default function NewPengajuanPage() {
 
   function handleSignatureModeChange(mode: "gambar" | "upload") {
     setSignatureMode(mode);
-    setValue("requesterSignatureUrl", "");
+    setValue("requesterSignatureUrl", "", { shouldValidate: true });
     setSignatureFileName(null);
+  }
+
+  // Several required fields (the employee picker chief among them) sit above
+  // the fold on a long form and aren't registered via `register()`, so
+  // react-hook-form's default focus-first-error behavior has no ref to jump
+  // to for them — without this, a validation failure up there is invisible
+  // to an admin scrolled down near the submit button.
+  function scrollToFormTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   useEffect(() => {
@@ -297,7 +306,7 @@ export default function NewPengajuanPage() {
       </Card>
 
       {isPersonaliaCategory(category) ? (
-        <form onSubmit={handleSubmitPersonalia(onSubmitPersonalia)} className="space-y-6">
+        <form onSubmit={handleSubmitPersonalia(onSubmitPersonalia, scrollToFormTop)} className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -311,8 +320,8 @@ export default function NewPengajuanPage() {
                   <EmployeePicker
                     value={watchPersonalia("employeeId")}
                     onSelect={(employee) => {
-                      setValuePersonalia("employeeId", employee?.id ?? null);
-                      setValuePersonalia("employeeName", employee?.name ?? "");
+                      setValuePersonalia("employeeId", employee?.id ?? null, { shouldValidate: true });
+                      setValuePersonalia("employeeName", employee?.name ?? "", { shouldValidate: true });
                     }}
                   />
                 ) : (
@@ -382,13 +391,16 @@ export default function NewPengajuanPage() {
                     variant="ghost"
                     size="sm"
                     aria-label="Hapus dokumen"
-                    onClick={() => setValuePersonalia("attachment", undefined as never)}
+                    onClick={() => setValuePersonalia("attachment", undefined as never, { shouldValidate: true })}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               ) : (
-                <FileUpload purpose="attachment" onUploaded={(file) => setValuePersonalia("attachment", file)} />
+                <FileUpload
+                  purpose="attachment"
+                  onUploaded={(file) => setValuePersonalia("attachment", file, { shouldValidate: true })}
+                />
               )}
               {personaliaErrors.attachment && (
                 <p className="text-sm text-destructive">Dokumen PDF wajib diupload.</p>
@@ -408,7 +420,7 @@ export default function NewPengajuanPage() {
           </Button>
         </form>
       ) : (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit, scrollToFormTop)} className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -417,7 +429,10 @@ export default function NewPengajuanPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <EmployeePicker value={watch("employeeId")} onSelect={(employee) => setValue("employeeId", employee?.id ?? "")} />
+              <EmployeePicker
+                value={watch("employeeId")}
+                onSelect={(employee) => setValue("employeeId", employee?.id ?? "", { shouldValidate: true })}
+              />
               {errors.employeeId && <p className="text-sm text-destructive">{errors.employeeId.message}</p>}
             </CardContent>
           </Card>
@@ -631,13 +646,15 @@ export default function NewPengajuanPage() {
                 </Button>
               </div>
               {signatureMode === "gambar" ? (
-                <SignaturePad onChange={(dataUrl) => setValue("requesterSignatureUrl", dataUrl ?? "")} />
+                <SignaturePad
+                  onChange={(dataUrl) => setValue("requesterSignatureUrl", dataUrl ?? "", { shouldValidate: true })}
+                />
               ) : (
                 <>
                   <FileUpload
                     purpose="signature"
                     onUploaded={(file) => {
-                      setValue("requesterSignatureUrl", file.fileUrl);
+                      setValue("requesterSignatureUrl", file.fileUrl, { shouldValidate: true });
                       setSignatureFileName(file.fileName);
                     }}
                   />
