@@ -69,6 +69,8 @@ export async function reviewPersonaliaSubmission(
         actorId: caller.uid,
         actorRole: caller.role,
         timestamp: serverTimestamp(),
+        submissionNumber: submission.submissionNumber,
+        employeeName: submission.employeeName,
       });
       return "perlu_revisi" as const;
     }
@@ -99,6 +101,8 @@ export async function reviewPersonaliaSubmission(
       actorId: caller.uid,
       actorRole: caller.role,
       timestamp: serverTimestamp(),
+      submissionNumber: submission.submissionNumber,
+      employeeName: submission.employeeName,
     });
 
     return bothApproved ? ("selesai" as const) : ("diajukan" as const);

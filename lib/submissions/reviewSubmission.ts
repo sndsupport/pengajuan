@@ -46,6 +46,8 @@ export async function reviewSubmission(rawInput: unknown, caller: AppUser): Prom
       actorId: caller.uid,
       actorRole: caller.role,
       timestamp: serverTimestamp(),
+      submissionNumber: submission.submissionNumber,
+      employeeName: submission.employeeName,
     });
   } else {
     batch.update(submissionRef, {
@@ -59,6 +61,8 @@ export async function reviewSubmission(rawInput: unknown, caller: AppUser): Prom
       actorId: caller.uid,
       actorRole: caller.role,
       timestamp: serverTimestamp(),
+      submissionNumber: submission.submissionNumber,
+      employeeName: submission.employeeName,
     });
   }
 

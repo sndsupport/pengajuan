@@ -34,6 +34,8 @@ export async function confirmSentToGa(rawInput: unknown, caller: AppUser): Promi
     actorId: caller.uid,
     actorRole: caller.role,
     timestamp: serverTimestamp(),
+    submissionNumber: submission.submissionNumber,
+    employeeName: submission.employeeName,
   });
   await batch.commit();
 

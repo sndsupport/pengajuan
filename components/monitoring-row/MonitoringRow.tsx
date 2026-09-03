@@ -17,6 +17,7 @@ export type MonitoringSubmission = {
   status: string;
   employeeName: string;
   submittedAt: Date | null;
+  completedAt: Date | null;
 };
 
 function formatSubmittedAt(date: Date | null): string {

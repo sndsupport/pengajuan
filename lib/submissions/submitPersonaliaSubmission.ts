@@ -104,6 +104,8 @@ async function createNewSubmission(
     actorId: caller.uid,
     actorRole: caller.role,
     timestamp: serverTimestamp(),
+    submissionNumber,
+    employeeName: input.employeeName,
   });
   try {
     await batch.commit();
@@ -161,6 +163,8 @@ async function resubmitAfterRevisi(
     actorId: caller.uid,
     actorRole: caller.role,
     timestamp: serverTimestamp(),
+    submissionNumber: submission.submissionNumber,
+    employeeName: input.employeeName,
   });
   await batch.commit();
 

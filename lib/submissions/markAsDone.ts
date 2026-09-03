@@ -34,6 +34,8 @@ export async function markAsDone(rawInput: unknown, caller: AppUser): Promise<Ma
     actorId: caller.uid,
     actorRole: caller.role,
     timestamp: serverTimestamp(),
+    submissionNumber: submission.submissionNumber,
+    employeeName: submission.employeeName,
   });
   await batch.commit();
 
