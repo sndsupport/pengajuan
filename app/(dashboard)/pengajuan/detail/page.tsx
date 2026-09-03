@@ -191,6 +191,7 @@ function PengajuanDetailContent() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-mono text-xl font-bold tracking-tight">{submission.submissionNumber}</h2>
+          <p className="text-sm font-medium">{submission.employeeName || "-"}</p>
           <p className="text-sm text-muted-foreground">{TYPE_LABEL[submission.type] ?? submission.type}</p>
         </div>
         <StatusBadge status={submission.status} />
