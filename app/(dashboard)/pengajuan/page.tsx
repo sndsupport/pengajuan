@@ -15,7 +15,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertCircle, ChevronRight, FileStack, Plus } from "lucide-react";
 import { TYPE_LABEL } from "@/lib/schemas/submission";
 
-type SubmissionRow = { id: string; submissionNumber: string; type: string; status: string; employeeName: string };
+type SubmissionRow = {
+  id: string;
+  submissionNumber: string;
+  type: string;
+  status: string;
+  employeeName: string;
+  submittedAt: Date | null;
+};
+
+function formatSubmittedAt(date: Date | null): string {
+  if (!date) return "-";
+  return date.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+}
 
 export default function PengajuanListPage() {
   const router = useRouter();
@@ -41,6 +53,7 @@ export default function PengajuanListPage() {
             type: d.data().type,
             status: d.data().status,
             employeeName: d.data().employeeName,
+            submittedAt: d.data().submittedAt?.toDate() ?? null,
           }))
         );
       },
@@ -84,6 +97,7 @@ export default function PengajuanListPage() {
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead>No. Pengajuan</TableHead>
+                <TableHead>Diajukan</TableHead>
                 <TableHead>Untuk</TableHead>
                 <TableHead>Jenis</TableHead>
                 <TableHead>Status</TableHead>
@@ -105,6 +119,7 @@ export default function PengajuanListPage() {
                       {row.submissionNumber}
                     </Link>
                   </TableCell>
+                  <TableCell className="font-mono text-sm">{formatSubmittedAt(row.submittedAt)}</TableCell>
                   <TableCell>{row.employeeName || "-"}</TableCell>
                   <TableCell>{TYPE_LABEL[row.type] ?? row.type}</TableCell>
                   <TableCell>

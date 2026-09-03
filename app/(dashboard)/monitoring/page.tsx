@@ -36,6 +36,7 @@ export default function MonitoringPage() {
             branch: d.data().branch,
             status: d.data().status,
             employeeName: d.data().employeeName,
+            submittedAt: d.data().submittedAt?.toDate() ?? null,
           }))
         );
       },
@@ -67,6 +68,7 @@ export default function MonitoringPage() {
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead>No. Pengajuan</TableHead>
+                <TableHead>Diajukan</TableHead>
                 <TableHead>Untuk</TableHead>
                 <TableHead>Cabang</TableHead>
                 <TableHead>Jenis</TableHead>

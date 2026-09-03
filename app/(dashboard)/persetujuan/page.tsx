@@ -29,7 +29,13 @@ type QueueRow = {
   employeeName: string;
   spvApproval: ApprovalRecord;
   managerApproval: ApprovalRecord;
+  submittedAt: Date | null;
 };
+
+function formatSubmittedAt(date: Date | null): string {
+  if (!date) return "-";
+  return date.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+}
 
 export default function PersetujuanPage() {
   const { appUser, loading } = useAuth();
@@ -67,6 +73,7 @@ export default function PersetujuanPage() {
             employeeName: d.data().employeeName,
             spvApproval: d.data().spvApproval ?? null,
             managerApproval: d.data().managerApproval ?? null,
+            submittedAt: d.data().submittedAt?.toDate() ?? null,
           }))
         );
       },
@@ -156,6 +163,9 @@ export default function PersetujuanPage() {
                   <CardHeader className="flex-row items-center justify-between space-y-0 border-b">
                     <div>
                       <p className="font-mono text-sm font-semibold">{row.submissionNumber}</p>
+                      <p className="font-mono text-xs text-muted-foreground">
+                        Diajukan: {formatSubmittedAt(row.submittedAt)}
+                      </p>
                       <p className="text-sm font-medium">{row.employeeName || "-"}</p>
                       <p className="text-sm text-muted-foreground">
                         {TYPE_LABEL[row.type] ?? row.type} · {row.branch}

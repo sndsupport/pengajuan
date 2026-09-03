@@ -16,7 +16,13 @@ export type MonitoringSubmission = {
   branch: string;
   status: string;
   employeeName: string;
+  submittedAt: Date | null;
 };
+
+function formatSubmittedAt(date: Date | null): string {
+  if (!date) return "-";
+  return date.toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+}
 
 export function MonitoringRow({ submission }: { submission: MonitoringSubmission }) {
   const [entries, setEntries] = useState<StatusHistoryEntry[]>([]);
@@ -45,6 +51,7 @@ export function MonitoringRow({ submission }: { submission: MonitoringSubmission
           {submission.submissionNumber}
         </Link>
       </TableCell>
+      <TableCell className="font-mono text-sm">{formatSubmittedAt(submission.submittedAt)}</TableCell>
       <TableCell>{submission.employeeName || "-"}</TableCell>
       <TableCell>{submission.branch}</TableCell>
       <TableCell>{TYPE_LABEL[submission.type] ?? submission.type}</TableCell>
