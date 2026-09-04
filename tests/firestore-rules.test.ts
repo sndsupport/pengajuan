@@ -517,6 +517,51 @@ describe("firestore.rules", () => {
         })
       );
     });
+
+    it("denies a statusHistory entry whose submissionNumber doesn't match the parent submission", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-numbered").set({
+          requesterId: "uid-admin",
+          status: "diajukan",
+          submissionNumber: "L.001/TSI-OPR/JB3-TNG/IX/2026",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-numbered").collection("statusHistory").doc("h-spoofed").set({
+          status: "diajukan",
+          note: null,
+          actorId: "uid-admin",
+          actorRole: "admin",
+          submissionNumber: "L.099/TSI-OPR/JB3-TNG/IX/2026",
+        })
+      );
+    });
+
+    it("allows a statusHistory entry whose employeeName differs from the parent submission's current value", async () => {
+      // Not cross-checked on purpose: resubmitAfterRevisi can change which employee a
+      // submission is for and writes the new name to both docs in the same batch, where
+      // get() still sees the pre-batch employeeName.
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-numbered2").set({
+          requesterId: "uid-admin",
+          status: "diajukan",
+          submissionNumber: "L.002/TSI-OPR/JB3-TNG/IX/2026",
+          employeeName: "Nama Lama",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("sub-numbered2").collection("statusHistory").doc("h-newname").set({
+          status: "diajukan",
+          note: null,
+          actorId: "uid-admin",
+          actorRole: "admin",
+          submissionNumber: "L.002/TSI-OPR/JB3-TNG/IX/2026",
+          employeeName: "Nama Baru",
+        })
+      );
+    });
   });
 
   describe("users rule", () => {

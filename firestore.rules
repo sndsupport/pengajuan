@@ -162,7 +162,18 @@ service cloud.firestore {
         allow create: if isSignedIn()
           && (get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid || isReviewer())
           && request.resource.data.actorId == request.auth.uid
-          && request.resource.data.actorRole == userRole();
+          && request.resource.data.actorRole == userRole()
+          // submissionNumber is denormalized onto every history entry for the Aktivitas
+          // Terbaru feed (visible org-wide, not just to this submission's own
+          // participants) -- cross-checked against the real parent doc (submissionNumber
+          // never changes post-creation, so this is always safe) so a caller can't write a
+          // fabricated entry attributing an arbitrary OTHER submission to themselves.
+          // employeeName is NOT cross-checked the same way: resubmitAfterRevisi lets the
+          // requester change which employee a submission is for and writes the new
+          // employeeName to both the submission doc and this history entry in the same
+          // batch -- get() inside a batch sees pre-batch state, so checking against it here
+          // would reject that legitimate same-batch update.
+          && request.resource.data.submissionNumber == get(/databases/$(database)/documents/submissions/$(submissionId)).data.submissionNumber;
         allow update, delete: if false;
       }
 
