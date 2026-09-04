@@ -3,10 +3,7 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DailyTrendPoint } from "@/lib/dashboard-stats";
-
-const TREND_COLOR = "#2a78d6";
-const GRIDLINE_COLOR = "#e1e0d9";
-const AXIS_COLOR = "#898781";
+import { CHART_AXIS_COLOR as AXIS_COLOR, CHART_GRIDLINE_COLOR as GRIDLINE_COLOR, CHART_SEQUENTIAL_COLOR as TREND_COLOR } from "./chart-colors";
 
 export function TrendChart({ data }: { data: DailyTrendPoint[] }) {
   const hasData = data.some((d) => d.count > 0);
@@ -25,7 +22,7 @@ export function TrendChart({ data }: { data: DailyTrendPoint[] }) {
                 tickLine={false}
                 axisLine={{ stroke: AXIS_COLOR }}
                 tick={{ fontSize: 11, fill: AXIS_COLOR }}
-                interval={data.length > 20 ? 4 : 1}
+                interval={4}
               />
               <YAxis
                 allowDecimals={false}

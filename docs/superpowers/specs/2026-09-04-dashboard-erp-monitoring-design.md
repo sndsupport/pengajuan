@@ -63,9 +63,9 @@ Jumlah submission bulan ini per `branch` (WHO/WHP/SND), bar chart horizontal ata
 
 **Rendering:** tiap entri tampil sebagai satu baris "`{submissionNumber}` — {label status} oleh {actorRole label} — {relative time}". Entry riwayat LAMA (ditulis sebelum perubahan ini) tidak punya `submissionNumber`/`employeeName` — tampilkan fallback teks netral ("Pengajuan" tanpa nomor) untuk entry lama; ini transisional, hilang sendirinya begitu data baru menumpuk melewati 15 entri terakhir.
 
-### 8. Chart library: Recharts (via komponen `chart` shadcn/ui)
+### 8. Chart library: Recharts, dipakai langsung (bukan lewat wrapper shadcn)
 
-Belum ada charting library di project. Tambah `recharts` sebagai dependency, pakai wrapper komponen chart ala shadcn/ui (`components/ui/chart.tsx`, pola standar shadcn) supaya konsisten dengan komponen UI lain yang sudah dipakai (`button`, `card`, `table`, dst — semua shadcn). Desain warna & aksesibilitas chart mengikuti panduan skill `dataviz` (dibaca ulang sebelum menulis kode chart pertama).
+Belum ada charting library di project. Tambah `recharts` sebagai dependency. **Implementasi aktual** (dikoreksi dari draft awal spec ini yang menyebut wrapper `components/ui/chart.tsx` ala shadcn): tiap komponen chart (`TrendChart.tsx`, `BranchChart.tsx`, `BreakdownDonut.tsx`) memanggil primitif Recharts langsung — wrapper generik shadcn dilewati karena cuma ada 3 komponen chart, over-engineering untuk scope sekecil ini. Warna chrome yang dipakai bersama (`GRIDLINE_COLOR`, `AXIS_COLOR`, hue sequential) disentralkan di `components/dashboard/chart-colors.ts` supaya tidak duplikat antar file. Desain warna & aksesibilitas chart mengikuti panduan skill `dataviz` (dibaca ulang sebelum menulis kode chart pertama).
 
 ## Testing
 

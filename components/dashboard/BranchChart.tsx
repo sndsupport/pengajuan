@@ -3,10 +3,7 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BreakdownSlice } from "@/lib/dashboard-stats";
-
-const BRANCH_COLOR = "#2a78d6";
-const GRIDLINE_COLOR = "#e1e0d9";
-const AXIS_COLOR = "#898781";
+import { CHART_AXIS_COLOR as AXIS_COLOR, CHART_GRIDLINE_COLOR as GRIDLINE_COLOR, CHART_SEQUENTIAL_COLOR as BRANCH_COLOR } from "./chart-colors";
 
 export function BranchChart({ slices }: { slices: BreakdownSlice[] }) {
   const data = slices.map((s) => ({ branch: s.key, count: s.count })).sort((a, b) => a.branch.localeCompare(b.branch));

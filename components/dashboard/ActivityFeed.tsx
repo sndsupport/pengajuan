@@ -32,23 +32,31 @@ function relativeTime(date: Date, now: Date): string {
 
 export function ActivityFeed() {
   const [entries, setEntries] = useState<ActivityEntry[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
     const q = query(collectionGroup(db, "statusHistory"), orderBy("timestamp", "desc"), limit(15));
-    return onSnapshot(q, (snap) => {
-      setEntries(
-        snap.docs.map((d) => ({
-          id: d.id,
-          submissionId: d.ref.parent.parent!.id,
-          submissionNumber: d.data().submissionNumber ?? null,
-          employeeName: d.data().employeeName ?? null,
-          status: d.data().status,
-          actorRole: d.data().actorRole,
-          timestamp: d.data().timestamp?.toDate() ?? new Date(),
-        }))
-      );
-    });
+    return onSnapshot(
+      q,
+      (snap) => {
+        setError(null);
+        setEntries(
+          snap.docs.map((d) => ({
+            id: d.id,
+            submissionId: d.ref.parent.parent!.id,
+            submissionNumber: d.data().submissionNumber ?? null,
+            employeeName: d.data().employeeName ?? null,
+            status: d.data().status,
+            actorRole: d.data().actorRole,
+            timestamp: d.data().timestamp?.toDate() ?? new Date(),
+          }))
+        );
+      },
+      (err) => {
+        setError(err.code);
+      }
+    );
   }, []);
 
   useEffect(() => {
@@ -62,7 +70,11 @@ export function ActivityFeed() {
         <CardTitle className="text-base">Aktivitas Terbaru</CardTitle>
       </CardHeader>
       <CardContent>
-        {entries.length === 0 ? (
+        {error ? (
+          <p role="alert" className="text-sm text-destructive">
+            Gagal memuat aktivitas terbaru.
+          </p>
+        ) : entries.length === 0 ? (
           <p className="text-sm text-muted-foreground">Belum ada aktivitas.</p>
         ) : (
           <ul className="divide-y">

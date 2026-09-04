@@ -451,6 +451,24 @@ describe("firestore.rules", () => {
     });
   });
 
+  describe("statusHistory read rule", () => {
+    it("allows any signed-in user (non-owner, non-reviewer) to read a statusHistory entry", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context
+          .firestore()
+          .collection("submissions")
+          .doc("sub-1")
+          .collection("statusHistory")
+          .doc("h-read")
+          .set({ status: "diajukan", note: null, actorId: "uid-admin", actorRole: "admin" });
+      });
+      const db = testEnv.authenticatedContext("uid-snd").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("sub-1").collection("statusHistory").doc("h-read").get()
+      );
+    });
+  });
+
   describe("statusHistory create rule", () => {
     it("allows creating a statusHistory entry with a matching actorId/actorRole", async () => {
       const db = testEnv.authenticatedContext("uid-admin").firestore();

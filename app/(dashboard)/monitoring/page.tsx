@@ -59,7 +59,10 @@ export default function MonitoringPage() {
     );
   }, [appUser]);
 
-  const now = useMemo(() => new Date(), []);
+  // Deliberately not memoized: freezing "now" at mount would make month-boundary
+  // filtering (computeKpis/computeDailyTrend/etc.) go stale if this dashboard is
+  // left open across midnight while new submissions stream in via onSnapshot.
+  const now = new Date();
   const kpis = useMemo(() => computeKpis(rows, now), [rows, now]);
   const trend = useMemo(() => computeDailyTrend(rows, now), [rows, now]);
   const statusBreakdown = useMemo(() => computeStatusBreakdown(rows, now), [rows, now]);
