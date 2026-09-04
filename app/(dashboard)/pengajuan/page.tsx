@@ -126,8 +126,8 @@ export default function PengajuanListPage() {
                     <StatusBadge status={row.status} />
                   </TableCell>
                   <TableCell>
-                    <Link href={`/pengajuan/detail?id=${row.id}`}>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    <Link href={`/pengajuan/detail?id=${row.id}`} aria-label={`Lihat detail ${row.submissionNumber}`}>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                     </Link>
                   </TableCell>
                 </TableRow>
