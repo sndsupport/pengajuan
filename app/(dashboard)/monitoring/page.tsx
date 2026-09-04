@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { exportSubmissionsToExcel } from "@/lib/export/exportSubmissionsExcel";
 import { MonitoringRow, MonitoringSubmission } from "@/components/monitoring-row/MonitoringRow";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { EmptyState } from "@/components/empty-state/EmptyState";
-import { AlertCircle, LayoutDashboard } from "lucide-react";
+import { AlertCircle, Download, LayoutDashboard } from "lucide-react";
 import { KpiCards } from "@/components/dashboard/KpiCards";
 import { TrendChart } from "@/components/dashboard/TrendChart";
 import { BreakdownDonut } from "@/components/dashboard/BreakdownDonut";
@@ -30,6 +32,20 @@ export default function MonitoringPage() {
   const { appUser } = useAuth();
   const [rows, setRows] = useState<MonitoringSubmission[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  async function handleExport() {
+    setIsExporting(true);
+    setExportError(null);
+    try {
+      await exportSubmissionsToExcel();
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Gagal export data.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
 
   useEffect(() => {
     if (!appUser) return;
@@ -74,7 +90,17 @@ export default function MonitoringPage() {
       <PageHeader
         title="Dashboard Monitoring"
         description="Pantau seluruh pengajuan beserta durasi tiap tahap prosesnya secara realtime."
+        actions={
+          <Button variant="outline" onClick={handleExport} disabled={isExporting}>
+            <Download className="h-4 w-4" />
+            {isExporting ? "Mengekspor..." : "Export Excel"}
+          </Button>
+        }
       />
+
+      {exportError && (
+        <EmptyState icon={AlertCircle} variant="error" title="Gagal export data" description={exportError} />
+      )}
 
       {error ? (
         <EmptyState

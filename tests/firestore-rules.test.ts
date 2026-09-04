@@ -19,7 +19,11 @@ describe("firestore.rules", () => {
       await db.collection("users").doc("uid-spv").set({ role: "spv", branch: "WHO", name: "Siti Aminah" });
       await db.collection("users").doc("uid-spv2").set({ role: "spv", branch: "WHO", name: "Rudi Hartono" });
       await db.collection("users").doc("uid-mgmt").set({ role: "management", branch: null, name: "Andi Wijaya" });
-      await db.collection("submissions").doc("sub-1").set({ requesterId: "uid-admin", status: "diajukan" });
+      await db.collection("submissions").doc("sub-1").set({
+        requesterId: "uid-admin",
+        status: "diajukan",
+        submissionNumber: "L.000/TSI-OPR/JB3-TNG/IX/2026",
+      });
       await db.collection("submissions").doc("sub-1").collection("items").doc("item-1").set({
         itemName: "Toyota Avanza",
         quantity: 1,
@@ -478,6 +482,7 @@ describe("firestore.rules", () => {
           note: null,
           actorId: "uid-admin",
           actorRole: "admin",
+          submissionNumber: "L.000/TSI-OPR/JB3-TNG/IX/2026",
         })
       );
     });
@@ -1226,6 +1231,94 @@ describe("firestore.rules", () => {
       });
       const db = testEnv.authenticatedContext("uid-super").firestore();
       await assertFails(db.collection("employees").doc("emp-1").delete());
+    });
+  });
+
+  describe("delete rules — superadmin reset (sole exception to 'never delete')", () => {
+    async function seedSuperadmin() {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("users").doc("uid-super").set({
+          role: "superadmin",
+          branch: null,
+          name: "Admin Utama",
+        });
+        await context.firestore().collection("submissions").doc("sub-1").collection("statusHistory").doc("hist-1").set({
+          status: "diajukan",
+          actorId: "uid-admin",
+          actorRole: "admin",
+        });
+        await context.firestore().collection("counters").doc("WHO-2026-09").set({ lastNumber: 1 });
+      });
+    }
+
+    it("allows superadmin to delete a submission", async () => {
+      await seedSuperadmin();
+      const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertSucceeds(db.collection("submissions").doc("sub-1").delete());
+    });
+
+    it("denies a non-superadmin (including the owner) from deleting a submission", async () => {
+      await seedSuperadmin();
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(db.collection("submissions").doc("sub-1").delete());
+    });
+
+    it("allows superadmin to delete an item regardless of submission status", async () => {
+      await seedSuperadmin();
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-1").update({ status: "selesai" });
+      });
+      const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertSucceeds(db.collection("submissions").doc("sub-1").collection("items").doc("item-1").delete());
+    });
+
+    it("allows superadmin to delete an attachment regardless of submission status", async () => {
+      await seedSuperadmin();
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-1").update({ status: "selesai" });
+      });
+      const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("sub-1").collection("attachments").doc("attachment-1").delete()
+      );
+    });
+
+    it("allows superadmin to delete a statusHistory entry", async () => {
+      await seedSuperadmin();
+      const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("sub-1").collection("statusHistory").doc("hist-1").delete()
+      );
+    });
+
+    it("denies a non-superadmin from deleting a statusHistory entry", async () => {
+      await seedSuperadmin();
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(db.collection("submissions").doc("sub-1").collection("statusHistory").doc("hist-1").delete());
+    });
+
+    it("allows superadmin to delete a counter", async () => {
+      await seedSuperadmin();
+      const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertSucceeds(db.collection("counters").doc("WHO-2026-09").delete());
+    });
+
+    it("allows superadmin to list the counters collection", async () => {
+      await seedSuperadmin();
+      const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertSucceeds(db.collection("counters").get());
+    });
+
+    it("denies a counter-writer role (admin) from listing the counters collection", async () => {
+      await seedSuperadmin();
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(db.collection("counters").get());
+    });
+
+    it("denies a non-superadmin from deleting a counter", async () => {
+      await seedSuperadmin();
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(db.collection("counters").doc("WHO-2026-09").delete());
     });
   });
 });

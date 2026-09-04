@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { ClipboardCheck, Contact, FileStack, LayoutDashboard, Users } from "lucide-react";
+import { ClipboardCheck, Contact, DatabaseBackup, FileStack, LayoutDashboard, Users } from "lucide-react";
 import type { AppUser } from "@/lib/hooks/useAuth";
 
 export type NavItem = {
@@ -38,6 +38,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/admin/pegawai",
     label: "Data Pegawai",
     icon: Contact,
+    roles: ["superadmin"],
+  },
+  {
+    href: "/admin/data",
+    label: "Manajemen Data",
+    icon: DatabaseBackup,
     roles: ["superadmin"],
   },
 ];

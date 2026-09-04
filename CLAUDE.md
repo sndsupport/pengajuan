@@ -148,6 +148,7 @@ counters/{branchYearMonthKey}     // contoh doc id: "WHO-2026-08"
 - `submissions/{id}/items/*` dan `submissions/{id}/attachments/*`: create/delete hanya oleh pemilik selama status masih `diajukan`/`perlu_revisi`; update selalu ditolak (immutable, hapus-lalu-buat-ulang kalau perlu ganti).
 - `employees/{employeeId}`: read oleh role `admin`/`superadmin` (admin butuh baca untuk mengisi picker pegawai saat membuat pengajuan); create/update hanya oleh `superadmin`; delete selalu ditolak.
 - `counters/{id}`: create hanya di angka 1, update hanya increment persis +1, hanya role `admin` — mencegah lompatan nomor pengajuan.
+- **Satu-satunya pengecualian dari prinsip "tidak pernah ada delete" (keputusan sadar 2026-09-04):** role `superadmin` boleh delete `submissions` (+ subcollection `items`/`attachments`/`statusHistory`-nya) dan `counters`, dipakai oleh panel reset data di `/admin/data` (lihat "Manajemen Data" di bawah). Semua role lain, dan semua collection lain (`users`, `employees`), tetap `allow delete: if false` tanpa pengecualian.
 - Simpan rules di `firestore.rules`, test pakai Firebase Emulator + `@firebase/rules-unit-testing` (`tests/firestore-rules.test.ts`) sebelum deploy — di mesin tanpa Java, test ini tidak bisa dijalankan lokal, jadi verifikasi manual (baca ulang logic rule vs test case) jadi pengganti sementara.
 
 ## Modul Client-side (`/lib`)
@@ -166,6 +167,8 @@ Pengganti apa yang sebelumnya jadi Cloud Functions callable — sekarang fungsi 
 | `lib/users/createUser.ts` | Halaman `/admin/new` (superadmin) | Buat akun Auth (instance app kedua) + dokumen `users/{uid}` |
 | `lib/users/updateUser.ts` | Halaman `/admin/[uid]` (superadmin) | Update dokumen `users/{uid}` |
 | `lib/drive-upload.ts` | Form Buat Pengajuan, signature pad | Upload file ke Google Drive lewat OAuth browser, dipakai untuk attachment & tanda tangan |
+| `lib/export/exportSubmissionsExcel.ts` (+ `lib/export/buildSubmissionsWorkbookData.ts` untuk bagian murni/testable-nya) | Tombol "Export Excel" di halaman Monitoring & `/admin/data` | Ambil semua `submissions`+`items`+`statusHistory`, generate `.xlsx` (3 sheet) via SheetJS (`xlsx`), trigger download langsung di browser |
+| `lib/admin/resetAllSubmissions.ts` | Halaman `/admin/data` (superadmin) | Hapus seluruh `submissions`+`items`+`attachments`+`statusHistory`+`counters` (batched, ≤500 op/batch); wajib export Excel dulu + ketik frasa konfirmasi di UI sebelum dipanggil — lihat "Manajemen Data" di bawah |
 
 Semua modul ini menolak request tanpa role yang sesuai di baris pertama (fail-fast, cek `caller.role`), sebelum logic lain jalan — sama seperti pola Cloud Function callable sebelumnya, hanya beda tempat eksekusinya.
 
@@ -200,6 +203,13 @@ Role `spv` yang submit personalia `cuti`/`izin` untuk dirinya sendiri tidak terp
 
 Detail lengkap: `docs/superpowers/specs/2026-09-02-admin-terpusat-data-pegawai-design.md`.
 
+## Manajemen Data (Export Excel & Reset, Superadmin)
+
+Halaman `/admin/data` (superadmin only, lihat `docs/superpowers/specs/2026-09-04-export-excel-reset-data-design.md`):
+
+- **Export Excel**: tombol yang sama juga ada di halaman Monitoring (siapa saja yang bisa akses Monitoring). Ambil semua `submissions` + subcollection `items`/`statusHistory` via `getDocs`, generate `.xlsx` 3 sheet (Submissions/Items/Status History) di browser pakai SheetJS (`xlsx`), langsung trigger download — tidak ada file yang disimpan di server (tidak ada server).
+- **Reset Data**: menghapus SEMUA `submissions` (+ `items`/`attachments`/`statusHistory`) dan semua `counters` — `employees` dan `users` TIDAK ikut. Ini permanen & untuk production live, jadi dikunci berlapis: (1) wajib klik "Export Excel dulu" sampai sukses, (2) wajib ketik ulang frasa persis `RESET SEMUA DATA` di sebuah input sebelum tombol final aktif. Dieksekusi lewat `lib/admin/resetAllSubmissions.ts`, dijaga oleh exception rules khusus superadmin (lihat bagian Security Rules di atas). Firestore client SDK tidak punya recursive-delete, jadi modul ini menghapus per-batch (≤500 operasi/batch, commit berurutan) — kalau terputus di tengah, aman untuk diklik ulang (idempotent, tinggal menghapus sisa dokumen yang masih ada).
+
 ## Struktur Folder
 
 ```
@@ -210,6 +220,7 @@ Detail lengkap: `docs/superpowers/specs/2026-09-02-admin-terpusat-data-pegawai-d
     /persetujuan        # antrian approve (spv, management)
     /monitoring          # dashboard semua pengajuan
     /admin               # manajemen user & pengaturan (superadmin)
+      /data              # export Excel & reset data (superadmin)
 /components
   /status-badge
   /submission-timeline
@@ -225,6 +236,8 @@ Detail lengkap: `docs/superpowers/specs/2026-09-02-admin-terpusat-data-pegawai-d
   /pdf                    # generateSubmissionPdfClient, generateAndAttachSubmissionPdf, pdfTemplate
   /users                  # createUser, updateUser, username
   /auth                    # username helpers dipakai form login
+  /export                  # exportSubmissionsExcel, buildSubmissionsWorkbookData (bagian murni/testable)
+  /admin                   # resetAllSubmissions
   drive-upload.ts          # upload ke Google Drive lewat OAuth browser
   wa-template.ts            # template pesan WA
   monitoring.ts              # hitung durasi per tahap dari statusHistory
@@ -285,3 +298,4 @@ Detail lengkap komponen & layout halaman ada di dokumen "Spesifikasi Aplikasi Pe
 - [x] Ekspansi One Gate: `gedung_fasilitas` (reuse alur operasional) + `personalia` lembur/cuti/izin (dual approval spv+management) — lihat bagian "Ekspansi One Gate" di atas. Sudah di-merge ke `main`, build & test non-emulator lolos
 - [x] Test otomatis emulator-dependent (`tests/firestore-rules.test.ts`, `lib/counters.test.ts`) — sudah bisa dijalankan setelah Java 21 terpasang (JDK portable, tidak butuh admin — lihat catatan Setup Awal), **190/190 test lolos** untuk pertama kalinya. `lib/counters.test.ts` sempat gagal PERMISSION_DENIED karena test itu pakai `unauthenticatedContext()` tanpa ruleset — sudah diperbaiki (jalan dengan ruleset terbuka, karena memang cuma nguji logic transaction, bukan rules). `scripts/seed-emulator.ts` juga sempat salah `projectId` (`pengajuan-kendaraan-perlengkapan` peninggalan sebelum rename, bukan `sndsupportapps`) — sudah diperbaiki.
 - [x] QA manual end-to-end (2026-09-01, via emulator + browser automation Playwright, bukan browser sungguhan interaktif) — nav per-role, submit gedung_fasilitas, submit+dual-approval personalia cuti (partial approval spv, final approval management → selesai), template WA ke HC, isolasi kategori spv (Lembur tersembunyi, Cuti/Izin muncul). Ketemu 1 bug kritis: **generate PDF selalu crash** di semua percobaan (auto saat approve maupun retry manual) — `html2canvas` meng-clone seluruh document untuk stacking context, sehingga ikut baca token warna `oklch()` dari CSS aplikasi (Tailwind base reset `* { border-color: var(--border) }` dkk) yang tidak bisa di-parse. Fix: render PDF di `<iframe>` terisolasi (`lib/pdf/generateSubmissionPdfClient.ts`), bukan `<div>` yang ditempel ke `document.body`. Sekalian ketemu & benerin `pdfTemplate.ts` yang belum kenal type `gedung_fasilitas` (bakal render "undefined"). **Belum tervalidasi**: langkah upload PDF ke Google Drive di ujung alur generate — butuh akun Google asli buat klik lewat OAuth popup, di luar jangkauan automasi headless.
+- [x] Export Excel (Monitoring & `/admin/data`) + Reset Data (superadmin, `/admin/data`) — lihat bagian "Manajemen Data" di atas dan `docs/superpowers/specs/2026-09-04-export-excel-reset-data-design.md`. Build & 233/233 test emulator lolos. **Belum divalidasi manual di browser sungguhan** (download file `.xlsx` beneran, dan alur reset end-to-end) — cuma diverifikasi lewat build + firestore-rules test.

@@ -18,6 +18,13 @@ service cloud.firestore {
       return isRequesterRole() || (isSignedIn() && userRole() == 'spv');
     }
 
+    // Sole exception to this app's "never delete" design: lets superadmin wipe
+    // submissions data from the /admin/data reset panel (demo/testing cleanup in
+    // production). Every other role/collection keeps allow delete: if false.
+    function isSuperadmin() {
+      return isSignedIn() && userRole() == 'superadmin';
+    }
+
     match /users/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || userRole() in ['spv', 'management', 'superadmin']);
       allow create, update: if isSignedIn()
@@ -147,13 +154,16 @@ service cloud.firestore {
           ))
       );
 
-      allow delete: if false;
+      allow delete: if isSuperadmin();
 
       match /items/{itemId} {
         allow read: if isSignedIn();
-        allow create, delete: if isSignedIn()
+        allow create: if isSignedIn()
           && get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid
           && get(/databases/$(database)/documents/submissions/$(submissionId)).data.status in ['diajukan', 'perlu_revisi'];
+        allow delete: if isSuperadmin()
+          || (get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid
+            && get(/databases/$(database)/documents/submissions/$(submissionId)).data.status in ['diajukan', 'perlu_revisi']);
         allow update: if false;
       }
 
@@ -174,23 +184,32 @@ service cloud.firestore {
           // batch -- get() inside a batch sees pre-batch state, so checking against it here
           // would reject that legitimate same-batch update.
           && request.resource.data.submissionNumber == get(/databases/$(database)/documents/submissions/$(submissionId)).data.submissionNumber;
-        allow update, delete: if false;
+        allow update: if false;
+        allow delete: if isSuperadmin();
       }
 
       match /attachments/{attachmentId} {
         allow read: if isSignedIn();
-        allow create, delete: if isSignedIn()
+        allow create: if isSignedIn()
           && get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid
           && get(/databases/$(database)/documents/submissions/$(submissionId)).data.status in ['diajukan', 'perlu_revisi'];
+        allow delete: if isSuperadmin()
+          || (get(/databases/$(database)/documents/submissions/$(submissionId)).data.requesterId == request.auth.uid
+            && get(/databases/$(database)/documents/submissions/$(submissionId)).data.status in ['diajukan', 'perlu_revisi']);
         allow update: if false;
       }
     }
 
     match /counters/{counterId} {
       allow get: if isCounterWriterRole();
+      // list is separate from get: needed by the /admin/data reset panel, which
+      // queries the whole collection to delete every counter. Not granted to
+      // isCounterWriterRole() — those callers only ever get() one known counter
+      // by id, never list the collection.
+      allow list: if isSuperadmin();
       allow create: if isCounterWriterRole() && request.resource.data.lastNumber == 1;
       allow update: if isCounterWriterRole() && request.resource.data.lastNumber == resource.data.lastNumber + 1;
-      allow delete: if false;
+      allow delete: if isSuperadmin();
     }
   }
 }
