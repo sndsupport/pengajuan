@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "seed": "tsx scripts/seed-emulator.ts"
+    "seed": "tsx scripts/seed-emulator.ts",
+    "seed:master-data": "tsx --env-file=.env.local scripts/seed-master-data.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

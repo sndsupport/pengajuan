@@ -6,9 +6,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { createEmployeeSchema, CreateEmployeeInput } from "@/lib/schemas/employee";
-import { createEmployee } from "@/lib/employees/createEmployee";
+import { createVehicleSchema, CreateVehicleInput, VEHICLE_CATEGORIES } from "@/lib/schemas/vehicle";
 import { BRANCHES } from "@/lib/branches";
+import { createVehicle } from "@/lib/vehicles/createVehicle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { AlertCircle } from "lucide-react";
 
-export default function NewEmployeePage() {
+export default function NewVehiclePage() {
   const { appUser, loading } = useAuth();
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
@@ -32,40 +32,56 @@ export default function NewEmployeePage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<z.input<typeof createEmployeeSchema>, unknown, CreateEmployeeInput>({
-    resolver: zodResolver(createEmployeeSchema),
-    defaultValues: { name: "", branch: BRANCHES[0], department: "", position: "" },
+  } = useForm<z.input<typeof createVehicleSchema>, unknown, CreateVehicleInput>({
+    resolver: zodResolver(createVehicleSchema),
+    defaultValues: { plateNumber: "", vehicleType: "", branch: BRANCHES[0], category: "Mobil" },
   });
 
-  async function onSubmit(data: CreateEmployeeInput) {
+  async function onSubmit(data: CreateVehicleInput) {
     if (!appUser) return;
     setServerError(null);
     try {
-      await createEmployee(data, appUser);
-      router.push("/admin/pegawai");
+      await createVehicle(data, appUser);
+      router.push("/admin/kendaraan");
     } catch (err) {
-      setServerError(err instanceof Error ? err.message : "Gagal membuat data pegawai.");
+      setServerError(err instanceof Error ? err.message : "Gagal membuat data kendaraan.");
     }
   }
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-4 sm:p-6">
-      <PageHeader title="Tambah Pegawai" description="Tambahkan data pegawai baru yang bisa dipilih admin saat membuat pengajuan." />
+      <PageHeader title="Tambah Kendaraan" description="Tambahkan data kendaraan baru yang bisa dipilih admin saat membuat pengajuan kendaraan." />
 
       <Card>
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="name">Nama</Label>
+              <Label htmlFor="plateNumber">Plat Nomor</Label>
               <Input
-                id="name"
-                aria-invalid={!!errors.name}
-                aria-describedby={errors.name ? "name-error" : undefined}
-                {...register("name")}
+                id="plateNumber"
+                className="font-mono"
+                aria-invalid={!!errors.plateNumber}
+                aria-describedby={errors.plateNumber ? "plateNumber-error" : undefined}
+                {...register("plateNumber")}
               />
-              {errors.name && (
-                <p id="name-error" className="text-sm text-destructive">
-                  {errors.name.message}
+              {errors.plateNumber && (
+                <p id="plateNumber-error" className="text-sm text-destructive">
+                  {errors.plateNumber.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="vehicleType">Jenis Kendaraan</Label>
+              <Input
+                id="vehicleType"
+                aria-invalid={!!errors.vehicleType}
+                aria-describedby={errors.vehicleType ? "vehicleType-error" : undefined}
+                {...register("vehicleType")}
+              />
+              {errors.vehicleType && (
+                <p id="vehicleType-error" className="text-sm text-destructive">
+                  {errors.vehicleType.message}
                 </p>
               )}
             </div>
@@ -83,34 +99,15 @@ export default function NewEmployeePage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="department">Departemen</Label>
-                <Input
-                  id="department"
-                  aria-invalid={!!errors.department}
-                  aria-describedby={errors.department ? "department-error" : undefined}
-                  {...register("department")}
-                />
-                {errors.department && (
-                  <p id="department-error" className="text-sm text-destructive">
-                    {errors.department.message}
-                  </p>
-                )}
+                <Label htmlFor="category">Kategori</Label>
+                <NativeSelect id="category" {...register("category")}>
+                  {VEHICLE_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </NativeSelect>
               </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="position">Posisi</Label>
-              <Input
-                id="position"
-                aria-invalid={!!errors.position}
-                aria-describedby={errors.position ? "position-error" : undefined}
-                {...register("position")}
-              />
-              {errors.position && (
-                <p id="position-error" className="text-sm text-destructive">
-                  {errors.position.message}
-                </p>
-              )}
             </div>
 
             {serverError && (
@@ -121,7 +118,7 @@ export default function NewEmployeePage() {
             )}
 
             <Button type="submit" size="lg" disabled={isSubmitting}>
-              {isSubmitting ? "Menyimpan..." : "Tambah Pegawai"}
+              {isSubmitting ? "Menyimpan..." : "Tambah Kendaraan"}
             </Button>
           </form>
         </CardContent>

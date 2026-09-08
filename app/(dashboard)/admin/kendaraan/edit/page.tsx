@@ -8,9 +8,9 @@ import { z } from "zod";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { updateEmployeeSchema, UpdateEmployeeInput } from "@/lib/schemas/employee";
-import { updateEmployee } from "@/lib/employees/updateEmployee";
+import { updateVehicleSchema, UpdateVehicleInput, VEHICLE_CATEGORIES } from "@/lib/schemas/vehicle";
 import { BRANCHES } from "@/lib/branches";
+import { updateVehicle } from "@/lib/vehicles/updateVehicle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,13 +19,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header/PageHeader";
 import { AlertCircle } from "lucide-react";
 
-function EditEmployeeContent() {
+function EditVehicleContent() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
   const { appUser, loading } = useAuth();
   const router = useRouter();
 
-  const [isLoadingEmployee, setIsLoadingEmployee] = useState(true);
+  const [isLoadingVehicle, setIsLoadingVehicle] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -34,9 +34,9 @@ function EditEmployeeContent() {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<z.input<typeof updateEmployeeSchema>, unknown, UpdateEmployeeInput>({
-    resolver: zodResolver(updateEmployeeSchema),
-    defaultValues: { id: id ?? "", name: "", branch: BRANCHES[0], department: "", position: "" },
+  } = useForm<z.input<typeof updateVehicleSchema>, unknown, UpdateVehicleInput>({
+    resolver: zodResolver(updateVehicleSchema),
+    defaultValues: { id: id ?? "", plateNumber: "", vehicleType: "", branch: BRANCHES[0], category: "Mobil" },
   });
 
   useEffect(() => {
@@ -47,56 +47,56 @@ function EditEmployeeContent() {
 
   useEffect(() => {
     if (!id) {
-      setIsLoadingEmployee(false);
-      setLoadError("Data pegawai tidak ditemukan.");
+      setIsLoadingVehicle(false);
+      setLoadError("Data kendaraan tidak ditemukan.");
       return;
     }
     let cancelled = false;
 
-    async function loadEmployee() {
-      setIsLoadingEmployee(true);
+    async function loadVehicle() {
+      setIsLoadingVehicle(true);
       setLoadError(null);
       try {
-        const snap = await getDoc(doc(db, "employees", id as string));
+        const snap = await getDoc(doc(db, "vehicles", id as string));
         if (!snap.exists()) {
-          throw new Error("Data pegawai tidak ditemukan.");
+          throw new Error("Data kendaraan tidak ditemukan.");
         }
         const data = snap.data();
         if (cancelled) return;
         reset({
           id: id as string,
-          name: data.name ?? "",
+          plateNumber: data.plateNumber ?? "",
+          vehicleType: data.vehicleType ?? "",
           branch: data.branch ?? BRANCHES[0],
-          department: data.department ?? "",
-          position: data.position ?? "",
+          category: data.category ?? "Mobil",
         });
       } catch (err) {
         if (!cancelled) {
-          setLoadError(err instanceof Error ? err.message : "Gagal memuat data pegawai.");
+          setLoadError(err instanceof Error ? err.message : "Gagal memuat data kendaraan.");
         }
       } finally {
-        if (!cancelled) setIsLoadingEmployee(false);
+        if (!cancelled) setIsLoadingVehicle(false);
       }
     }
 
-    loadEmployee();
+    loadVehicle();
     return () => {
       cancelled = true;
     };
   }, [id, reset]);
 
-  async function onSubmit(data: UpdateEmployeeInput) {
+  async function onSubmit(data: UpdateVehicleInput) {
     if (!appUser) return;
     setServerError(null);
     try {
-      await updateEmployee(data, appUser);
-      router.push("/admin/pegawai");
+      await updateVehicle(data, appUser);
+      router.push("/admin/kendaraan");
     } catch (err) {
-      setServerError(err instanceof Error ? err.message : "Gagal mengubah data pegawai.");
+      setServerError(err instanceof Error ? err.message : "Gagal mengubah data kendaraan.");
     }
   }
 
-  if (isLoadingEmployee) {
+  if (isLoadingVehicle) {
     return <div className="mx-auto max-w-2xl p-6 text-sm text-muted-foreground">Memuat...</div>;
   }
 
@@ -106,22 +106,38 @@ function EditEmployeeContent() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-4 sm:p-6">
-      <PageHeader title="Edit Pegawai" description="Perbarui data pegawai." />
+      <PageHeader title="Edit Kendaraan" description="Perbarui data kendaraan." />
 
       <Card>
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="name">Nama</Label>
+              <Label htmlFor="plateNumber">Plat Nomor</Label>
               <Input
-                id="name"
-                aria-invalid={!!errors.name}
-                aria-describedby={errors.name ? "name-error" : undefined}
-                {...register("name")}
+                id="plateNumber"
+                className="font-mono"
+                aria-invalid={!!errors.plateNumber}
+                aria-describedby={errors.plateNumber ? "plateNumber-error" : undefined}
+                {...register("plateNumber")}
               />
-              {errors.name && (
-                <p id="name-error" className="text-sm text-destructive">
-                  {errors.name.message}
+              {errors.plateNumber && (
+                <p id="plateNumber-error" className="text-sm text-destructive">
+                  {errors.plateNumber.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="vehicleType">Jenis Kendaraan</Label>
+              <Input
+                id="vehicleType"
+                aria-invalid={!!errors.vehicleType}
+                aria-describedby={errors.vehicleType ? "vehicleType-error" : undefined}
+                {...register("vehicleType")}
+              />
+              {errors.vehicleType && (
+                <p id="vehicleType-error" className="text-sm text-destructive">
+                  {errors.vehicleType.message}
                 </p>
               )}
             </div>
@@ -139,34 +155,15 @@ function EditEmployeeContent() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="department">Departemen</Label>
-                <Input
-                  id="department"
-                  aria-invalid={!!errors.department}
-                  aria-describedby={errors.department ? "department-error" : undefined}
-                  {...register("department")}
-                />
-                {errors.department && (
-                  <p id="department-error" className="text-sm text-destructive">
-                    {errors.department.message}
-                  </p>
-                )}
+                <Label htmlFor="category">Kategori</Label>
+                <NativeSelect id="category" {...register("category")}>
+                  {VEHICLE_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </NativeSelect>
               </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="position">Posisi</Label>
-              <Input
-                id="position"
-                aria-invalid={!!errors.position}
-                aria-describedby={errors.position ? "position-error" : undefined}
-                {...register("position")}
-              />
-              {errors.position && (
-                <p id="position-error" className="text-sm text-destructive">
-                  {errors.position.message}
-                </p>
-              )}
             </div>
 
             {serverError && (
@@ -186,10 +183,10 @@ function EditEmployeeContent() {
   );
 }
 
-export default function EditEmployeePage() {
+export default function EditVehiclePage() {
   return (
     <Suspense fallback={<div className="mx-auto max-w-2xl p-6 text-sm text-muted-foreground">Memuat...</div>}>
-      <EditEmployeeContent />
+      <EditVehicleContent />
     </Suspense>
   );
 }

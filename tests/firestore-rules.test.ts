@@ -1321,4 +1321,117 @@ describe("firestore.rules", () => {
       await assertFails(db.collection("counters").doc("WHO-2026-09").delete());
     });
   });
+
+  describe("vehicles rules", () => {
+    it("allows admin to read vehicles", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("vehicles").doc("veh-1").set({
+          plateNumber: "D 8664 FC",
+          vehicleType: "GRANMAX S402RP-PMRFJJ KJ",
+          branch: "WHO Bandung",
+          category: "Mobil",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(db.collection("vehicles").doc("veh-1").get());
+    });
+
+    it("allows superadmin to read vehicles", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("users").doc("uid-super").set({
+          role: "superadmin",
+          branch: null,
+          name: "Admin Utama",
+        });
+        await context.firestore().collection("vehicles").doc("veh-1").set({
+          plateNumber: "D 8664 FC",
+          vehicleType: "GRANMAX S402RP-PMRFJJ KJ",
+          branch: "WHO Bandung",
+          category: "Mobil",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertSucceeds(db.collection("vehicles").doc("veh-1").get());
+    });
+
+    it("denies spv from reading vehicles", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("vehicles").doc("veh-1").set({
+          plateNumber: "D 8664 FC",
+          vehicleType: "GRANMAX S402RP-PMRFJJ KJ",
+          branch: "WHO Bandung",
+          category: "Mobil",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(db.collection("vehicles").doc("veh-1").get());
+    });
+
+    it("denies admin from creating a vehicle", async () => {
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(
+        db.collection("vehicles").doc("veh-2").set({
+          plateNumber: "D 8854 FD",
+          vehicleType: "GRANMAX S402RP-PMRFJJ KJ",
+          branch: "WHO Bogor",
+          category: "Mobil",
+        })
+      );
+    });
+
+    it("allows superadmin to create a vehicle", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("users").doc("uid-super").set({
+          role: "superadmin",
+          branch: null,
+          name: "Admin Utama",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertSucceeds(
+        db.collection("vehicles").doc("veh-2").set({
+          plateNumber: "D 8854 FD",
+          vehicleType: "GRANMAX S402RP-PMRFJJ KJ",
+          branch: "WHO Bogor",
+          category: "Mobil",
+        })
+      );
+    });
+
+    it("allows superadmin to update a vehicle", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("users").doc("uid-super").set({
+          role: "superadmin",
+          branch: null,
+          name: "Admin Utama",
+        });
+        await context.firestore().collection("vehicles").doc("veh-1").set({
+          plateNumber: "D 8664 FC",
+          vehicleType: "GRANMAX S402RP-PMRFJJ KJ",
+          branch: "WHO Bandung",
+          category: "Mobil",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertSucceeds(db.collection("vehicles").doc("veh-1").update({ vehicleType: "GRANMAX S402RP-PMRFJJ MU" }));
+    });
+
+    it("denies any client from deleting a vehicle", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("users").doc("uid-super").set({
+          role: "superadmin",
+          branch: null,
+          name: "Admin Utama",
+        });
+        await context.firestore().collection("vehicles").doc("veh-1").set({
+          plateNumber: "D 8664 FC",
+          vehicleType: "GRANMAX S402RP-PMRFJJ KJ",
+          branch: "WHO Bandung",
+          category: "Mobil",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertFails(db.collection("vehicles").doc("veh-1").delete());
+    });
+  });
 });

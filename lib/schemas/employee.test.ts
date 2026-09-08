@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { createEmployeeSchema, updateEmployeeSchema } from "./employee";
 
 describe("createEmployeeSchema", () => {
-  const valid = { name: "Rahmat Hidayat", branch: "WHO" as const, department: "Operasional", position: "Staff Gudang" };
+  const valid = { name: "Rahmat Hidayat", branch: "WHO Bandung" as const, department: "Operasional", position: "Staff Gudang" };
 
   it("accepts a valid payload", () => {
     expect(createEmployeeSchema.safeParse(valid).success).toBe(true);
@@ -29,7 +29,7 @@ describe("updateEmployeeSchema", () => {
   it("requires an id in addition to the base fields", () => {
     const result = updateEmployeeSchema.safeParse({
       name: "Rahmat Hidayat",
-      branch: "WHO",
+      branch: "WHO Bandung",
       department: "Operasional",
       position: "Staff Gudang",
     });
@@ -40,7 +40,7 @@ describe("updateEmployeeSchema", () => {
     const result = updateEmployeeSchema.safeParse({
       id: "emp-1",
       name: "Rahmat Hidayat",
-      branch: "WHO",
+      branch: "WHO Bandung",
       department: "Operasional",
       position: "Staff Gudang",
     });

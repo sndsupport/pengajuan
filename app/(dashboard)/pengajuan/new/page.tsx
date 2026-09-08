@@ -25,6 +25,7 @@ import { PageHeader } from "@/components/page-header/PageHeader";
 import { SignaturePad } from "@/components/signature-pad/SignaturePad";
 import { FileUpload } from "@/components/file-upload/FileUpload";
 import { EmployeePicker } from "@/components/employee-picker/EmployeePicker";
+import { VehiclePicker } from "@/components/vehicle-picker/VehiclePicker";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { submitSubmission } from "@/lib/submissions/submitSubmission";
 import { submitPersonaliaSubmission } from "@/lib/submissions/submitPersonaliaSubmission";
@@ -91,7 +92,7 @@ export default function NewPengajuanPage() {
       subType: "service_berkala",
       employeeId: "",
       requesterSignatureUrl: "",
-      items: [{ itemName: "", brandType: "", km: null, quantity: 1, unit: "", description: "" }],
+      items: [{ itemName: "", brandType: "", km: null, quantity: 1, unit: "", description: "", vehicleId: null }],
       attachments: [],
     },
   });
@@ -204,6 +205,7 @@ export default function NewPengajuanPage() {
             quantity: data.quantity ?? 1,
             unit: data.unit ?? "",
             description: data.description ?? "",
+            vehicleId: data.vehicleId ?? null,
           };
         });
         const attachmentsSnap = await getDocs(collection(db, "submissions", id, "attachments"));
@@ -229,7 +231,7 @@ export default function NewPengajuanPage() {
           items:
             items.length > 0
               ? items
-              : [{ itemName: "", brandType: "", km: null, quantity: 1, unit: "", description: "" }],
+              : [{ itemName: "", brandType: "", km: null, quantity: 1, unit: "", description: "", vehicleId: null }],
           attachments,
         });
       } catch (err) {
@@ -477,7 +479,7 @@ export default function NewPengajuanPage() {
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  append({ itemName: "", brandType: "", km: null, quantity: 1, unit: "", description: "" })
+                  append({ itemName: "", brandType: "", km: null, quantity: 1, unit: "", description: "", vehicleId: null })
                 }
               >
                 <Plus className="h-4 w-4" />
@@ -490,34 +492,59 @@ export default function NewPengajuanPage() {
                 return (
                   <div key={field.id} className="space-y-3 rounded-xl border bg-muted/30 p-4">
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="space-y-1.5">
-                        <Input
-                          placeholder="Nama item"
-                          aria-label="Nama item"
-                          aria-invalid={!!itemErrors?.itemName}
-                          aria-describedby={itemErrors?.itemName ? `item-${index}-itemName-error` : undefined}
-                          {...register(`items.${index}.itemName`)}
-                        />
-                        {itemErrors?.itemName && (
-                          <p id={`item-${index}-itemName-error`} className="text-sm text-destructive">
-                            {itemErrors.itemName.message}
-                          </p>
-                        )}
-                      </div>
-                      <div className="space-y-1.5">
-                        <Input
-                          placeholder="Merk/Tipe"
-                          aria-label="Merk/Tipe"
-                          aria-invalid={!!itemErrors?.brandType}
-                          aria-describedby={itemErrors?.brandType ? `item-${index}-brandType-error` : undefined}
-                          {...register(`items.${index}.brandType`)}
-                        />
-                        {itemErrors?.brandType && (
-                          <p id={`item-${index}-brandType-error`} className="text-sm text-destructive">
-                            {itemErrors.brandType.message}
-                          </p>
-                        )}
-                      </div>
+                      {selectedType === "kendaraan" ? (
+                        <div className="space-y-1.5 sm:col-span-2">
+                          <input type="hidden" {...register(`items.${index}.itemName`)} />
+                          <input type="hidden" {...register(`items.${index}.brandType`)} />
+                          <VehiclePicker
+                            id={`vehiclePicker-${index}`}
+                            value={watch(`items.${index}.vehicleId`)}
+                            onSelect={(vehicle) => {
+                              setValue(`items.${index}.vehicleId`, vehicle?.id ?? null, { shouldValidate: true });
+                              setValue(`items.${index}.itemName`, vehicle?.plateNumber ?? "", { shouldValidate: true });
+                              setValue(`items.${index}.brandType`, vehicle?.vehicleType ?? "", { shouldValidate: true });
+                            }}
+                            ariaInvalid={!!itemErrors?.itemName}
+                            ariaDescribedBy={itemErrors?.itemName ? `item-${index}-itemName-error` : undefined}
+                          />
+                          {itemErrors?.itemName && (
+                            <p id={`item-${index}-itemName-error`} className="text-sm text-destructive">
+                              {itemErrors.itemName.message}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <div className="space-y-1.5">
+                            <Input
+                              placeholder="Nama item"
+                              aria-label="Nama item"
+                              aria-invalid={!!itemErrors?.itemName}
+                              aria-describedby={itemErrors?.itemName ? `item-${index}-itemName-error` : undefined}
+                              {...register(`items.${index}.itemName`)}
+                            />
+                            {itemErrors?.itemName && (
+                              <p id={`item-${index}-itemName-error`} className="text-sm text-destructive">
+                                {itemErrors.itemName.message}
+                              </p>
+                            )}
+                          </div>
+                          <div className="space-y-1.5">
+                            <Input
+                              placeholder="Merk/Tipe"
+                              aria-label="Merk/Tipe"
+                              aria-invalid={!!itemErrors?.brandType}
+                              aria-describedby={itemErrors?.brandType ? `item-${index}-brandType-error` : undefined}
+                              {...register(`items.${index}.brandType`)}
+                            />
+                            {itemErrors?.brandType && (
+                              <p id={`item-${index}-brandType-error`} className="text-sm text-destructive">
+                                {itemErrors.brandType.message}
+                              </p>
+                            )}
+                          </div>
+                        </>
+                      )}
                       {selectedType === "kendaraan" && (
                         <div className="space-y-1.5">
                           <Input

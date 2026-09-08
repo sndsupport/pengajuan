@@ -22,6 +22,7 @@ export const itemSchema = z.object({
   quantity: z.number().int().positive(),
   unit: z.string().min(1, "Satuan wajib diisi"),
   description: z.string(),
+  vehicleId: z.string().nullable().default(null),
 });
 
 export const attachmentSchema = z.object({
