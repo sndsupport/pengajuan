@@ -1785,7 +1785,7 @@ Then run (values supplied by the user, not hardcoded anywhere):
 SEED_ADMIN_USERNAME=<username> SEED_ADMIN_PASSWORD=<password> npm run seed:master-data
 ```
 
-Expected output: one `Seeded employee ...` or `Skip employee (already exists): ...` line per row in `employees-operational.json`, followed by one `Seeded vehicle ...` or `Skip vehicle (already exists): ...` line per row in `vehicles.json` — 102 employee lines and 46 vehicle lines total, no errors.
+Expected output: one `Seeded employee ...` or `Skip employee (already exists): ...` line per row in `employees-operational.json`, followed by one `Seeded vehicle ...` or `Skip vehicle (already exists): ...` line per row in `vehicles.json` — 102 employee lines and 49 vehicle lines total, no errors.
 
 - [ ] **Step 5: Verify in the live app**
 
