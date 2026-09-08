@@ -1,8 +1,9 @@
 import { z } from "zod";
+import { BRANCHES } from "@/lib/branches";
 
 export const createEmployeeSchema = z.object({
   name: z.string().min(1, "Nama wajib diisi"),
-  branch: z.enum(["WHO", "WHP", "SND"]),
+  branch: z.enum(BRANCHES),
   department: z.string().min(1, "Departemen wajib diisi"),
   position: z.string().min(1, "Posisi wajib diisi"),
 });
