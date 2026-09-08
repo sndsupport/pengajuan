@@ -137,6 +137,46 @@ describe("createSubmissionSchema — gedung_fasilitas", () => {
   });
 });
 
+describe("itemSchema vehicleId", () => {
+  const basePayload = {
+    type: "kendaraan" as const,
+    subType: "service_berkala" as const,
+    employeeId: "emp-1",
+    requesterSignatureUrl: "https://storage.example.com/sig.png",
+    items: [
+      { itemName: "D 8664 FC", brandType: "GRANMAX S402RP-PMRFJJ KJ", km: 45000, quantity: 1, unit: "unit", description: "" },
+    ],
+  };
+
+  it("defaults vehicleId to null when omitted", () => {
+    const result = createSubmissionSchema.safeParse(basePayload);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.items[0].vehicleId).toBeNull();
+    }
+  });
+
+  it("accepts an explicit vehicleId", () => {
+    const payload = {
+      ...basePayload,
+      items: [{ ...basePayload.items[0], vehicleId: "veh-1" }],
+    };
+    const result = createSubmissionSchema.safeParse(payload);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.items[0].vehicleId).toBe("veh-1");
+    }
+  });
+
+  it("accepts an explicit null vehicleId", () => {
+    const payload = {
+      ...basePayload,
+      items: [{ ...basePayload.items[0], vehicleId: null }],
+    };
+    expect(createSubmissionSchema.safeParse(payload).success).toBe(true);
+  });
+});
+
 describe("reviewSubmissionSchema", () => {
   it("requires rejectionNote when decision is reject", () => {
     const result = reviewSubmissionSchema.safeParse({ submissionId: "abc", decision: "reject", rejectionNote: "" });
