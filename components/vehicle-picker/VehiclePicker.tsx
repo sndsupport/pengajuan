@@ -11,12 +11,14 @@ export type Vehicle = { id: string; plateNumber: string; vehicleType: string; br
 export function VehiclePicker({
   value,
   onSelect,
+  branchFilter,
   id = "vehiclePicker",
   ariaInvalid,
   ariaDescribedBy,
 }: {
   value: string | null | undefined;
   onSelect: (vehicle: Vehicle | null) => void;
+  branchFilter: string | null;
   id?: string;
   ariaInvalid?: boolean;
   ariaDescribedBy?: string;
@@ -24,6 +26,7 @@ export function VehiclePicker({
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAllOverride, setShowAllOverride] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,6 +55,11 @@ export function VehiclePicker({
     };
   }, []);
 
+  useEffect(() => {
+    setShowAllOverride(false);
+  }, [branchFilter]);
+
+  const filteredVehicles = branchFilter && !showAllOverride ? vehicles.filter((v) => v.branch === branchFilter) : vehicles;
   const selected = vehicles.find((v) => v.id === value) ?? null;
 
   function handleChange(event: React.ChangeEvent<HTMLSelectElement>) {
@@ -67,6 +75,17 @@ export function VehiclePicker({
     return <p className="text-sm text-destructive">{error}</p>;
   }
 
+  if (!branchFilter) {
+    return (
+      <div className="space-y-1.5">
+        <Label htmlFor={id}>Kendaraan</Label>
+        <NativeSelect id={id} value="" disabled>
+          <option value="">Pilih pegawai terlebih dahulu</option>
+        </NativeSelect>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>Kendaraan</Label>
@@ -80,12 +99,26 @@ export function VehiclePicker({
         <option value="" disabled>
           Pilih kendaraan
         </option>
-        {vehicles.map((v) => (
+        {filteredVehicles.map((v) => (
           <option key={v.id} value={v.id}>
             {v.plateNumber} — {v.vehicleType}
           </option>
         ))}
       </NativeSelect>
+      {filteredVehicles.length === 0 && (
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">
+            Tidak ada kendaraan terdaftar di cabang ini ({branchFilter}).
+          </p>
+          <button
+            type="button"
+            className="text-xs font-medium text-primary underline underline-offset-2"
+            onClick={() => setShowAllOverride(true)}
+          >
+            Tampilkan semua kendaraan
+          </button>
+        </div>
+      )}
       {selected && (
         <p className="text-xs text-muted-foreground">
           {selected.branch} · {selected.category}

@@ -75,6 +75,7 @@ export default function NewPengajuanPage() {
   const [resubmitError, setResubmitError] = useState<string | null>(null);
   const [signatureMode, setSignatureMode] = useState<"gambar" | "upload">("gambar");
   const [signatureFileName, setSignatureFileName] = useState<string | null>(null);
+  const [selectedEmployeeBranch, setSelectedEmployeeBranch] = useState<string | null>(null);
 
   const {
     register,
@@ -234,6 +235,7 @@ export default function NewPengajuanPage() {
               : [{ itemName: "", brandType: "", km: null, quantity: 1, unit: "", description: "", vehicleId: null }],
           attachments,
         });
+        setSelectedEmployeeBranch(submissionData?.branch ?? null);
       } catch (err) {
         if (cancelled) return;
         const code = (err as { code?: string } | undefined)?.code;
@@ -433,7 +435,18 @@ export default function NewPengajuanPage() {
             <CardContent>
               <EmployeePicker
                 value={watch("employeeId")}
-                onSelect={(employee) => setValue("employeeId", employee?.id ?? "", { shouldValidate: true })}
+                onSelect={(employee) => {
+                  setValue("employeeId", employee?.id ?? "", { shouldValidate: true });
+                  const newBranch = employee?.branch ?? null;
+                  if (selectedType === "kendaraan" && newBranch !== selectedEmployeeBranch) {
+                    fields.forEach((_, index) => {
+                      setValue(`items.${index}.vehicleId`, null, { shouldValidate: true });
+                      setValue(`items.${index}.itemName`, "", { shouldValidate: true });
+                      setValue(`items.${index}.brandType`, "", { shouldValidate: true });
+                    });
+                  }
+                  setSelectedEmployeeBranch(newBranch);
+                }}
               />
               {errors.employeeId && <p className="text-sm text-destructive">{errors.employeeId.message}</p>}
             </CardContent>
@@ -504,6 +517,7 @@ export default function NewPengajuanPage() {
                               setValue(`items.${index}.itemName`, vehicle?.plateNumber ?? "", { shouldValidate: true });
                               setValue(`items.${index}.brandType`, vehicle?.vehicleType ?? "", { shouldValidate: true });
                             }}
+                            branchFilter={selectedEmployeeBranch}
                             ariaInvalid={!!itemErrors?.itemName}
                             ariaDescribedBy={itemErrors?.itemName ? `item-${index}-itemName-error` : undefined}
                           />
