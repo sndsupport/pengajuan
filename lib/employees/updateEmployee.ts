@@ -7,8 +7,8 @@ import type { AppUser } from "@/lib/hooks/useAuth";
 export type UpdateEmployeeResult = { id: string };
 
 export async function updateEmployee(rawInput: unknown, caller: AppUser): Promise<UpdateEmployeeResult> {
-  if (caller.role !== "superadmin") {
-    throw new Error("Hanya superadmin yang bisa mengubah data pegawai.");
+  if (!["admin", "spv", "superadmin"].includes(caller.role)) {
+    throw new Error("Anda tidak punya akses untuk mengubah data pegawai.");
   }
 
   const parsed = updateEmployeeSchema.safeParse(rawInput);

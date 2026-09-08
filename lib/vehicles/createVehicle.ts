@@ -7,8 +7,8 @@ import type { AppUser } from "@/lib/hooks/useAuth";
 export type CreateVehicleResult = { id: string };
 
 export async function createVehicle(rawInput: unknown, caller: AppUser): Promise<CreateVehicleResult> {
-  if (caller.role !== "superadmin") {
-    throw new Error("Hanya superadmin yang bisa membuat data kendaraan.");
+  if (!["admin", "spv", "superadmin"].includes(caller.role)) {
+    throw new Error("Anda tidak punya akses untuk membuat data kendaraan.");
   }
 
   const parsed = createVehicleSchema.safeParse(rawInput);

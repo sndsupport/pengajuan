@@ -7,8 +7,8 @@ import type { AppUser } from "@/lib/hooks/useAuth";
 export type CreateEmployeeResult = { id: string };
 
 export async function createEmployee(rawInput: unknown, caller: AppUser): Promise<CreateEmployeeResult> {
-  if (caller.role !== "superadmin") {
-    throw new Error("Hanya superadmin yang bisa membuat data pegawai.");
+  if (!["admin", "spv", "superadmin"].includes(caller.role)) {
+    throw new Error("Anda tidak punya akses untuk membuat data pegawai.");
   }
 
   const parsed = createEmployeeSchema.safeParse(rawInput);

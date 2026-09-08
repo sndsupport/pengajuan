@@ -7,8 +7,8 @@ import type { AppUser } from "@/lib/hooks/useAuth";
 export type UpdateVehicleResult = { id: string };
 
 export async function updateVehicle(rawInput: unknown, caller: AppUser): Promise<UpdateVehicleResult> {
-  if (caller.role !== "superadmin") {
-    throw new Error("Hanya superadmin yang bisa mengubah data kendaraan.");
+  if (!["admin", "spv", "superadmin"].includes(caller.role)) {
+    throw new Error("Anda tidak punya akses untuk mengubah data kendaraan.");
   }
 
   const parsed = updateVehicleSchema.safeParse(rawInput);
