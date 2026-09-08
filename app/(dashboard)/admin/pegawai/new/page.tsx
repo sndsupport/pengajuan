@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { createEmployeeSchema, CreateEmployeeInput } from "@/lib/schemas/employee";
 import { createEmployee } from "@/lib/employees/createEmployee";
+import { BRANCHES } from "@/lib/branches";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,7 +34,7 @@ export default function NewEmployeePage() {
     formState: { errors, isSubmitting },
   } = useForm<z.input<typeof createEmployeeSchema>, unknown, CreateEmployeeInput>({
     resolver: zodResolver(createEmployeeSchema),
-    defaultValues: { name: "", branch: "WHO", department: "", position: "" },
+    defaultValues: { name: "", branch: BRANCHES[0], department: "", position: "" },
   });
 
   async function onSubmit(data: CreateEmployeeInput) {
@@ -73,9 +74,11 @@ export default function NewEmployeePage() {
               <div className="space-y-1.5">
                 <Label htmlFor="branch">Cabang</Label>
                 <NativeSelect id="branch" {...register("branch")}>
-                  <option value="WHO">WHO</option>
-                  <option value="WHP">WHP</option>
-                  <option value="SND">SND</option>
+                  {BRANCHES.map((b) => (
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
+                  ))}
                 </NativeSelect>
               </div>
 

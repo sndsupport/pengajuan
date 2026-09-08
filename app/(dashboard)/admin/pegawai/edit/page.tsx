@@ -10,6 +10,7 @@ import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { updateEmployeeSchema, UpdateEmployeeInput } from "@/lib/schemas/employee";
 import { updateEmployee } from "@/lib/employees/updateEmployee";
+import { BRANCHES } from "@/lib/branches";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +36,7 @@ function EditEmployeeContent() {
     formState: { errors, isSubmitting },
   } = useForm<z.input<typeof updateEmployeeSchema>, unknown, UpdateEmployeeInput>({
     resolver: zodResolver(updateEmployeeSchema),
-    defaultValues: { id: id ?? "", name: "", branch: "WHO", department: "", position: "" },
+    defaultValues: { id: id ?? "", name: "", branch: BRANCHES[0], department: "", position: "" },
   });
 
   useEffect(() => {
@@ -65,7 +66,7 @@ function EditEmployeeContent() {
         reset({
           id: id as string,
           name: data.name ?? "",
-          branch: data.branch ?? "WHO",
+          branch: data.branch ?? BRANCHES[0],
           department: data.department ?? "",
           position: data.position ?? "",
         });
@@ -129,9 +130,11 @@ function EditEmployeeContent() {
               <div className="space-y-1.5">
                 <Label htmlFor="branch">Cabang</Label>
                 <NativeSelect id="branch" {...register("branch")}>
-                  <option value="WHO">WHO</option>
-                  <option value="WHP">WHP</option>
-                  <option value="SND">SND</option>
+                  {BRANCHES.map((b) => (
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
+                  ))}
                 </NativeSelect>
               </div>
 
