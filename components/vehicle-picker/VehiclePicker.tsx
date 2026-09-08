@@ -11,9 +11,15 @@ export type Vehicle = { id: string; plateNumber: string; vehicleType: string; br
 export function VehiclePicker({
   value,
   onSelect,
+  id = "vehiclePicker",
+  ariaInvalid,
+  ariaDescribedBy,
 }: {
   value: string | null | undefined;
   onSelect: (vehicle: Vehicle | null) => void;
+  id?: string;
+  ariaInvalid?: boolean;
+  ariaDescribedBy?: string;
 }) {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,8 +55,8 @@ export function VehiclePicker({
   const selected = vehicles.find((v) => v.id === value) ?? null;
 
   function handleChange(event: React.ChangeEvent<HTMLSelectElement>) {
-    const id = event.target.value;
-    onSelect(vehicles.find((v) => v.id === id) ?? null);
+    const selectedId = event.target.value;
+    onSelect(vehicles.find((v) => v.id === selectedId) ?? null);
   }
 
   if (loading) {
@@ -63,8 +69,14 @@ export function VehiclePicker({
 
   return (
     <div className="space-y-1.5">
-      <Label htmlFor="vehiclePicker">Kendaraan</Label>
-      <NativeSelect id="vehiclePicker" value={value ?? ""} onChange={handleChange}>
+      <Label htmlFor={id}>Kendaraan</Label>
+      <NativeSelect
+        id={id}
+        value={value ?? ""}
+        onChange={handleChange}
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedBy}
+      >
         <option value="" disabled>
           Pilih kendaraan
         </option>
