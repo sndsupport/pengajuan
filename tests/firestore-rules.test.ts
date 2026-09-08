@@ -1126,12 +1126,25 @@ describe("firestore.rules", () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {
         await context.firestore().collection("employees").doc("emp-1").set({
           name: "Rahmat Hidayat",
-          branch: "WHO",
+          branch: "WHO Bandung",
           department: "Operasional",
           position: "Staff Gudang",
         });
       });
       const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(db.collection("employees").doc("emp-1").get());
+    });
+
+    it("allows spv to read employees", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("employees").doc("emp-1").set({
+          name: "Rahmat Hidayat",
+          branch: "WHO Bandung",
+          department: "Operasional",
+          position: "Staff Gudang",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
       await assertSucceeds(db.collection("employees").doc("emp-1").get());
     });
 
@@ -1144,7 +1157,7 @@ describe("firestore.rules", () => {
         });
         await context.firestore().collection("employees").doc("emp-1").set({
           name: "Rahmat Hidayat",
-          branch: "WHO",
+          branch: "WHO Bandung",
           department: "Operasional",
           position: "Staff Gudang",
         });
@@ -1153,25 +1166,37 @@ describe("firestore.rules", () => {
       await assertSucceeds(db.collection("employees").doc("emp-1").get());
     });
 
-    it("denies spv from reading employees", async () => {
+    it("denies management from reading employees", async () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {
         await context.firestore().collection("employees").doc("emp-1").set({
           name: "Rahmat Hidayat",
-          branch: "WHO",
+          branch: "WHO Bandung",
           department: "Operasional",
           position: "Staff Gudang",
         });
       });
-      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      const db = testEnv.authenticatedContext("uid-mgmt").firestore();
       await assertFails(db.collection("employees").doc("emp-1").get());
     });
 
-    it("denies admin from creating an employee", async () => {
+    it("allows admin to create an employee", async () => {
       const db = testEnv.authenticatedContext("uid-admin").firestore();
-      await assertFails(
+      await assertSucceeds(
         db.collection("employees").doc("emp-2").set({
           name: "Siti Aminah",
-          branch: "WHP",
+          branch: "WHP Bandung",
+          department: "Operasional",
+          position: "Staff Gudang",
+        })
+      );
+    });
+
+    it("allows spv to create an employee", async () => {
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(
+        db.collection("employees").doc("emp-2").set({
+          name: "Siti Aminah",
+          branch: "WHP Bandung",
           department: "Operasional",
           position: "Staff Gudang",
         })
@@ -1190,11 +1215,49 @@ describe("firestore.rules", () => {
       await assertSucceeds(
         db.collection("employees").doc("emp-2").set({
           name: "Siti Aminah",
-          branch: "WHP",
+          branch: "WHP Bandung",
           department: "Operasional",
           position: "Staff Gudang",
         })
       );
+    });
+
+    it("denies management from creating an employee", async () => {
+      const db = testEnv.authenticatedContext("uid-mgmt").firestore();
+      await assertFails(
+        db.collection("employees").doc("emp-2").set({
+          name: "Siti Aminah",
+          branch: "WHP Bandung",
+          department: "Operasional",
+          position: "Staff Gudang",
+        })
+      );
+    });
+
+    it("allows admin to update an employee", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("employees").doc("emp-1").set({
+          name: "Rahmat Hidayat",
+          branch: "WHO Bandung",
+          department: "Operasional",
+          position: "Staff Gudang",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(db.collection("employees").doc("emp-1").update({ position: "Kepala Gudang" }));
+    });
+
+    it("allows spv to update an employee", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("employees").doc("emp-1").set({
+          name: "Rahmat Hidayat",
+          branch: "WHO Bandung",
+          department: "Operasional",
+          position: "Staff Gudang",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(db.collection("employees").doc("emp-1").update({ position: "Kepala Gudang" }));
     });
 
     it("allows superadmin to update an employee", async () => {
@@ -1206,7 +1269,7 @@ describe("firestore.rules", () => {
         });
         await context.firestore().collection("employees").doc("emp-1").set({
           name: "Rahmat Hidayat",
-          branch: "WHO",
+          branch: "WHO Bandung",
           department: "Operasional",
           position: "Staff Gudang",
         });
@@ -1215,7 +1278,33 @@ describe("firestore.rules", () => {
       await assertSucceeds(db.collection("employees").doc("emp-1").update({ position: "Kepala Gudang" }));
     });
 
-    it("denies any client from deleting an employee", async () => {
+    it("allows admin to delete an employee", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("employees").doc("emp-1").set({
+          name: "Rahmat Hidayat",
+          branch: "WHO Bandung",
+          department: "Operasional",
+          position: "Staff Gudang",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(db.collection("employees").doc("emp-1").delete());
+    });
+
+    it("allows spv to delete an employee", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("employees").doc("emp-1").set({
+          name: "Rahmat Hidayat",
+          branch: "WHO Bandung",
+          department: "Operasional",
+          position: "Staff Gudang",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(db.collection("employees").doc("emp-1").delete());
+    });
+
+    it("allows superadmin to delete an employee", async () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {
         await context.firestore().collection("users").doc("uid-super").set({
           role: "superadmin",
@@ -1224,12 +1313,25 @@ describe("firestore.rules", () => {
         });
         await context.firestore().collection("employees").doc("emp-1").set({
           name: "Rahmat Hidayat",
-          branch: "WHO",
+          branch: "WHO Bandung",
           department: "Operasional",
           position: "Staff Gudang",
         });
       });
       const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertSucceeds(db.collection("employees").doc("emp-1").delete());
+    });
+
+    it("denies management from deleting an employee", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("employees").doc("emp-1").set({
+          name: "Rahmat Hidayat",
+          branch: "WHO Bandung",
+          department: "Operasional",
+          position: "Staff Gudang",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-mgmt").firestore();
       await assertFails(db.collection("employees").doc("emp-1").delete());
     });
   });
@@ -1336,6 +1438,19 @@ describe("firestore.rules", () => {
       await assertSucceeds(db.collection("vehicles").doc("veh-1").get());
     });
 
+    it("allows spv to read vehicles", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("vehicles").doc("veh-1").set({
+          plateNumber: "D 8664 FC",
+          vehicleType: "GRANMAX S402RP-PMRFJJ KJ",
+          branch: "WHO Bandung",
+          category: "Mobil",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(db.collection("vehicles").doc("veh-1").get());
+    });
+
     it("allows superadmin to read vehicles", async () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {
         await context.firestore().collection("users").doc("uid-super").set({
@@ -1354,7 +1469,7 @@ describe("firestore.rules", () => {
       await assertSucceeds(db.collection("vehicles").doc("veh-1").get());
     });
 
-    it("denies spv from reading vehicles", async () => {
+    it("denies management from reading vehicles", async () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {
         await context.firestore().collection("vehicles").doc("veh-1").set({
           plateNumber: "D 8664 FC",
@@ -1363,13 +1478,25 @@ describe("firestore.rules", () => {
           category: "Mobil",
         });
       });
-      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      const db = testEnv.authenticatedContext("uid-mgmt").firestore();
       await assertFails(db.collection("vehicles").doc("veh-1").get());
     });
 
-    it("denies admin from creating a vehicle", async () => {
+    it("allows admin to create a vehicle", async () => {
       const db = testEnv.authenticatedContext("uid-admin").firestore();
-      await assertFails(
+      await assertSucceeds(
+        db.collection("vehicles").doc("veh-2").set({
+          plateNumber: "D 8854 FD",
+          vehicleType: "GRANMAX S402RP-PMRFJJ KJ",
+          branch: "WHO Bogor",
+          category: "Mobil",
+        })
+      );
+    });
+
+    it("allows spv to create a vehicle", async () => {
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(
         db.collection("vehicles").doc("veh-2").set({
           plateNumber: "D 8854 FD",
           vehicleType: "GRANMAX S402RP-PMRFJJ KJ",
@@ -1398,6 +1525,44 @@ describe("firestore.rules", () => {
       );
     });
 
+    it("denies management from creating a vehicle", async () => {
+      const db = testEnv.authenticatedContext("uid-mgmt").firestore();
+      await assertFails(
+        db.collection("vehicles").doc("veh-2").set({
+          plateNumber: "D 8854 FD",
+          vehicleType: "GRANMAX S402RP-PMRFJJ KJ",
+          branch: "WHO Bogor",
+          category: "Mobil",
+        })
+      );
+    });
+
+    it("allows admin to update a vehicle", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("vehicles").doc("veh-1").set({
+          plateNumber: "D 8664 FC",
+          vehicleType: "GRANMAX S402RP-PMRFJJ KJ",
+          branch: "WHO Bandung",
+          category: "Mobil",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(db.collection("vehicles").doc("veh-1").update({ vehicleType: "GRANMAX S402RP-PMRFJJ MU" }));
+    });
+
+    it("allows spv to update a vehicle", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("vehicles").doc("veh-1").set({
+          plateNumber: "D 8664 FC",
+          vehicleType: "GRANMAX S402RP-PMRFJJ KJ",
+          branch: "WHO Bandung",
+          category: "Mobil",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(db.collection("vehicles").doc("veh-1").update({ vehicleType: "GRANMAX S402RP-PMRFJJ MU" }));
+    });
+
     it("allows superadmin to update a vehicle", async () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {
         await context.firestore().collection("users").doc("uid-super").set({
@@ -1416,7 +1581,33 @@ describe("firestore.rules", () => {
       await assertSucceeds(db.collection("vehicles").doc("veh-1").update({ vehicleType: "GRANMAX S402RP-PMRFJJ MU" }));
     });
 
-    it("denies any client from deleting a vehicle", async () => {
+    it("allows admin to delete a vehicle", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("vehicles").doc("veh-1").set({
+          plateNumber: "D 8664 FC",
+          vehicleType: "GRANMAX S402RP-PMRFJJ KJ",
+          branch: "WHO Bandung",
+          category: "Mobil",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertSucceeds(db.collection("vehicles").doc("veh-1").delete());
+    });
+
+    it("allows spv to delete a vehicle", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("vehicles").doc("veh-1").set({
+          plateNumber: "D 8664 FC",
+          vehicleType: "GRANMAX S402RP-PMRFJJ KJ",
+          branch: "WHO Bandung",
+          category: "Mobil",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(db.collection("vehicles").doc("veh-1").delete());
+    });
+
+    it("allows superadmin to delete a vehicle", async () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {
         await context.firestore().collection("users").doc("uid-super").set({
           role: "superadmin",
@@ -1431,6 +1622,19 @@ describe("firestore.rules", () => {
         });
       });
       const db = testEnv.authenticatedContext("uid-super").firestore();
+      await assertSucceeds(db.collection("vehicles").doc("veh-1").delete());
+    });
+
+    it("denies management from deleting a vehicle", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("vehicles").doc("veh-1").set({
+          plateNumber: "D 8664 FC",
+          vehicleType: "GRANMAX S402RP-PMRFJJ KJ",
+          branch: "WHO Bandung",
+          category: "Mobil",
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-mgmt").firestore();
       await assertFails(db.collection("vehicles").doc("veh-1").delete());
     });
   });
