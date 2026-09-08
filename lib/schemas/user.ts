@@ -3,7 +3,9 @@ import { z } from "zod";
 export const roleSchema = z.enum(["admin", "spv", "management", "superadmin"]);
 export type Role = z.infer<typeof roleSchema>;
 
-export const branchSchema = z.enum(["WHO", "WHP", "SND"]).nullable();
+// Users are role-scoped, not branch-scoped, since the admin-terpusat restructuring
+// (branch now lives on `employees`, selected per-submission) — this is always null.
+export const branchSchema = z.null();
 
 export function isValidBranchForRole(_role: Role, branch: string | null): boolean {
   return branch === null;
