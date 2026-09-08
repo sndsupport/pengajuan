@@ -7,6 +7,7 @@ export type NavItem = {
   label: string;
   icon: LucideIcon;
   roles: AppUser["role"][];
+  group?: "data";
 };
 
 export const NAV_ITEMS: NavItem[] = [
@@ -33,24 +34,28 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Manajemen User",
     icon: Users,
     roles: ["superadmin"],
+    group: "data",
   },
   {
     href: "/admin/pegawai",
     label: "Data Pegawai",
     icon: Contact,
-    roles: ["superadmin"],
+    roles: ["admin", "spv", "superadmin"],
+    group: "data",
   },
   {
     href: "/admin/kendaraan",
     label: "Data Kendaraan",
     icon: Car,
-    roles: ["superadmin"],
+    roles: ["admin", "spv", "superadmin"],
+    group: "data",
   },
   {
     href: "/admin/data",
     label: "Manajemen Data",
     icon: DatabaseBackup,
     roles: ["superadmin"],
+    group: "data",
   },
 ];
 
