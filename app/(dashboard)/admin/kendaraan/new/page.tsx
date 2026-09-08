@@ -23,7 +23,7 @@ export default function NewVehiclePage() {
   const [serverError, setServerError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!loading && appUser && appUser.role !== "superadmin") {
+    if (!loading && appUser && !["admin", "spv", "superadmin"].includes(appUser.role)) {
       router.replace("/pengajuan");
     }
   }, [loading, appUser, router]);

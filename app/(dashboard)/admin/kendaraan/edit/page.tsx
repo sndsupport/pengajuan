@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { updateVehicleSchema, UpdateVehicleInput, VEHICLE_CATEGORIES } from "@/lib/schemas/vehicle";
 import { BRANCHES } from "@/lib/branches";
 import { updateVehicle } from "@/lib/vehicles/updateVehicle";
+import { deleteVehicle } from "@/lib/vehicles/deleteVehicle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +29,9 @@ function EditVehicleContent() {
   const [isLoadingVehicle, setIsLoadingVehicle] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const {
     register,
@@ -40,7 +44,7 @@ function EditVehicleContent() {
   });
 
   useEffect(() => {
-    if (!loading && appUser && appUser.role !== "superadmin") {
+    if (!loading && appUser && !["admin", "spv", "superadmin"].includes(appUser.role)) {
       router.replace("/pengajuan");
     }
   }, [loading, appUser, router]);
@@ -93,6 +97,19 @@ function EditVehicleContent() {
       router.push("/admin/kendaraan");
     } catch (err) {
       setServerError(err instanceof Error ? err.message : "Gagal mengubah data kendaraan.");
+    }
+  }
+
+  async function handleDelete() {
+    if (!appUser || !id) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteVehicle(id, appUser);
+      router.push("/admin/kendaraan");
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Gagal menghapus data kendaraan.");
+      setIsDeleting(false);
     }
   }
 
@@ -177,6 +194,42 @@ function EditVehicleContent() {
               {isSubmitting ? "Menyimpan..." : "Simpan Perubahan"}
             </Button>
           </form>
+
+          <div className="mt-2 border-t pt-4">
+            {confirmingDelete ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-muted-foreground">Yakin hapus data kendaraan ini?</span>
+                <Button type="button" variant="destructive" size="sm" onClick={handleDelete} disabled={isDeleting}>
+                  {isDeleting ? "Menghapus..." : "Ya, Hapus"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setConfirmingDelete(false)}
+                  disabled={isDeleting}
+                >
+                  Batal
+                </Button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                onClick={() => setConfirmingDelete(true)}
+              >
+                Hapus Kendaraan
+              </Button>
+            )}
+            {deleteError && (
+              <div role="alert" className="mt-2 flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
