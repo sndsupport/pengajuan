@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, getDocs, serverTimestamp, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
-import { generateSubmissionPdfClient } from "./generateSubmissionPdfClient";
+import { renderSubmissionBaseCanvas, compositeSignatureAndBuildPdf } from "./generateSubmissionPdfClient";
+import type { SignaturePositionPx } from "./signaturePosition";
 import type { SubmissionPdfData, SubmissionPdfItem } from "./pdfTemplate";
 import type { AppUser } from "@/lib/hooks/useAuth";
 
@@ -10,7 +11,8 @@ export type GenerateAndAttachSubmissionPdfResult = { pdfUrl: string };
 
 export async function generateAndAttachSubmissionPdf(
   submissionId: string,
-  caller: AppUser
+  caller: AppUser,
+  signaturePositionPx: SignaturePositionPx
 ): Promise<GenerateAndAttachSubmissionPdfResult> {
   const submissionRef = doc(db, "submissions", submissionId);
   const submissionSnap = await getDoc(submissionRef);
@@ -45,7 +47,7 @@ export async function generateAndAttachSubmissionPdf(
     };
   });
 
-  const pdfData: SubmissionPdfData = {
+  const pdfData: Omit<SubmissionPdfData, "approverSignatureUrl"> = {
     submissionNumber: submission.submissionNumber,
     type: submission.type,
     subType: submission.subType,
@@ -56,13 +58,18 @@ export async function generateAndAttachSubmissionPdf(
     requesterSignatureUrl: submission.requesterSignatureUrl,
     approverName: submission.approverName,
     approverRole: submission.approverRole,
-    approverSignatureUrl: submission.approverSignatureUrl,
     submittedAt: submission.submittedAt?.toDate() ?? new Date(),
     approvedAt: submission.approvedAt?.toDate() ?? new Date(),
     items,
   };
 
-  const { pdfUrl } = await generateSubmissionPdfClient(pdfData);
+  const { canvas } = await renderSubmissionBaseCanvas(pdfData);
+  const { pdfUrl } = await compositeSignatureAndBuildPdf(
+    canvas,
+    submission.approverSignatureUrl,
+    signaturePositionPx,
+    submission.submissionNumber
+  );
 
   const batch = writeBatch(db);
   batch.update(submissionRef, {
@@ -83,10 +90,6 @@ export async function generateAndAttachSubmissionPdf(
   try {
     await batch.commit();
   } catch (error) {
-    // Someone else (the auto-trigger or a concurrent retry) may have already
-    // finished this same transition while we were mid-render/upload. If so,
-    // adopt their result instead of surfacing a confusing permission error —
-    // the outcome the caller actually wanted (a PDF attached) already happened.
     const freshSnap = await getDoc(submissionRef);
     const fresh = freshSnap.data();
     if (fresh?.status === "siap_dikirim" && fresh.pdfUrl) {
