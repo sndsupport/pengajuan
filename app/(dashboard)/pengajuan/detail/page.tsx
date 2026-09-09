@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { doc, onSnapshot, collection, orderBy, query, DocumentData } from "firebase/firestore";
+import { doc, onSnapshot, collection, orderBy, query, getDocs, DocumentData } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { buildWaTemplate, buildPersonaliaWaTemplate } from "@/lib/wa-template";
@@ -11,6 +11,9 @@ import { TYPE_LABEL, PERSONALIA_SUBTYPE_LABEL } from "@/lib/schemas/submission";
 import { confirmSentToGa } from "@/lib/submissions/confirmSentToGa";
 import { markAsDone } from "@/lib/submissions/markAsDone";
 import { generateAndAttachSubmissionPdf } from "@/lib/pdf/generateAndAttachSubmissionPdf";
+import { SignaturePlacementModal } from "@/components/pdf/SignaturePlacementModal";
+import type { SubmissionPdfData, SubmissionPdfItem } from "@/lib/pdf/pdfTemplate";
+import type { SignaturePositionPx } from "@/lib/pdf/signaturePosition";
 import { StatusBadge, STATUS_STYLES } from "@/components/status-badge/StatusBadge";
 import { SubmissionTimeline, StatusHistoryEntry } from "@/components/submission-timeline/SubmissionTimeline";
 import { Button } from "@/components/ui/button";
@@ -39,6 +42,10 @@ function PengajuanDetailContent() {
   const [hcCopyFeedback, setHcCopyFeedback] = useState(false);
   const [hcCopyError, setHcCopyError] = useState<string | null>(null);
   const [personaliaAttachmentUrl, setPersonaliaAttachmentUrl] = useState<string | null>(null);
+  const [placement, setPlacement] = useState<{
+    data: Omit<SubmissionPdfData, "approverSignatureUrl">;
+    signatureImageUrl: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -156,14 +163,51 @@ function PengajuanDetailContent() {
     }
   }
 
-  async function handleGeneratePdf() {
+  async function handleOpenGeneratePdf() {
     if (!submission || !appUser) return;
     setPdfError(null);
+    try {
+      const itemsSnap = await getDocs(collection(db, "submissions", submission.id, "items"));
+      const items: SubmissionPdfItem[] = itemsSnap.docs.map((d) => {
+        const item = d.data();
+        return {
+          itemName: item.itemName as string,
+          brandType: item.brandType as string,
+          km: (item.km as number | null) ?? null,
+          quantity: item.quantity as number,
+          unit: item.unit as string,
+          description: item.description as string,
+        };
+      });
+      setPlacement({
+        signatureImageUrl: submission.approverSignatureUrl,
+        data: {
+          submissionNumber: submission.submissionNumber,
+          type: submission.type,
+          subType: submission.subType,
+          branch: submission.branch,
+          department: submission.department,
+          position: submission.position,
+          requesterName: submission.employeeName,
+          requesterSignatureUrl: submission.requesterSignatureUrl,
+          approverName: submission.approverName,
+          approverRole: submission.approverRole,
+          submittedAt: submission.submittedAt?.toDate() ?? new Date(),
+          approvedAt: submission.approvedAt?.toDate() ?? new Date(),
+          items,
+        },
+      });
+    } catch (err) {
+      setPdfError(err instanceof Error ? err.message : "Gagal menyiapkan preview PDF.");
+    }
+  }
+
+  async function handleConfirmPlacement(position: SignaturePositionPx) {
+    if (!submission || !appUser) return;
     setGeneratingPdf(true);
     try {
-      await generateAndAttachSubmissionPdf(submission.id, appUser);
-    } catch (err) {
-      setPdfError(err instanceof Error ? err.message : "Gagal generate PDF.");
+      await generateAndAttachSubmissionPdf(submission.id, appUser, position);
+      setPlacement(null);
     } finally {
       setGeneratingPdf(false);
     }
@@ -238,7 +282,7 @@ function PengajuanDetailContent() {
                       {pdfError}
                     </p>
                   )}
-                  <Button type="button" size="sm" disabled={generatingPdf} onClick={handleGeneratePdf}>
+                  <Button type="button" size="sm" disabled={generatingPdf} onClick={handleOpenGeneratePdf}>
                     {generatingPdf ? "Memproses..." : "Coba Generate PDF"}
                   </Button>
                 </CardContent>
@@ -430,6 +474,15 @@ function PengajuanDetailContent() {
           <SubmissionTimeline entries={history} />
         </CardContent>
       </Card>
+
+      {placement && (
+        <SignaturePlacementModal
+          data={placement.data}
+          signatureImageUrl={placement.signatureImageUrl}
+          onConfirm={handleConfirmPlacement}
+          onCancel={() => setPlacement(null)}
+        />
+      )}
     </div>
   );
 }
