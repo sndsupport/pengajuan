@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/page-header/PageHeader";
 import { EmptyState } from "@/components/empty-state/EmptyState";
 import { SignaturePad } from "@/components/signature-pad/SignaturePad";
 import { FileUpload } from "@/components/file-upload/FileUpload";
+import { AttachmentsList } from "@/components/attachments-list/AttachmentsList";
 import { reviewSubmission } from "@/lib/submissions/reviewSubmission";
 import { reviewPersonaliaSubmission } from "@/lib/submissions/reviewPersonaliaSubmission";
 import { AlertCircle, Check, ClipboardCheck, X } from "lucide-react";
@@ -233,6 +234,7 @@ export default function PersetujuanPage() {
                   <StatusBadge status="diajukan" />
                 </CardHeader>
                 <CardContent className="space-y-4 pt-6">
+                  <AttachmentsList submissionId={row.id} />
                   <div className="space-y-1.5">
                     <Label htmlFor={`note-${row.id}`}>Catatan (wajib jika tolak)</Label>
                     <Textarea
