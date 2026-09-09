@@ -162,7 +162,7 @@ Pengganti apa yang sebelumnya jadi Cloud Functions callable — sekarang fungsi 
 | `lib/submissions/reviewSubmission.ts` | Halaman Antrian Persetujuan (`spv`/`management`), alur operasional | Approve → set `disetujui` + data approver; reject → set `perlu_revisi` + `rejectionNote` wajib diisi |
 | `lib/submissions/submitPersonaliaSubmission.ts` | Form Buat Pengajuan, kategori Lembur/Cuti/Izin | Generate `submissionNumber`, tulis submission (field `employeeName`/`periodStart`/`periodEnd`) + 1 attachment + statusHistory; cek role vs `subType` (mis. `lembur` cuma untuk `admin`, bukan `spv`) |
 | `lib/submissions/reviewPersonaliaSubmission.ts` | Halaman Antrian Persetujuan, submission `type: "personalia"` | Approve → isi `spvApproval`/`managerApproval` milik sendiri; kalau approval yang lain sudah ada, sekalian set status `selesai`. Reject → sama seperti alur operasional |
-| `lib/pdf/generateAndAttachSubmissionPdf.ts` + `lib/pdf/generateSubmissionPdfClient.ts` | Halaman detail pengajuan, setelah `disetujui` | Render PDF di browser (jsPDF + html2canvas), upload ke Google Drive, update `pdfUrl` + status `siap_dikirim` |
+| `lib/pdf/generateAndAttachSubmissionPdf.ts` + `lib/pdf/generateSubmissionPdfClient.ts` (`renderSubmissionBaseCanvas`/`compositeSignatureAndBuildPdf`) + `components/pdf/SignaturePlacementModal.tsx` | Antrian Persetujuan (saat approve) & halaman detail pengajuan (retry) | Render template tanpa TTD approver ke satu kanvas, tampilkan sebagai preview yang bisa di-drag lewat `SignaturePlacementModal` supaya approver bisa taruh TTD-nya di posisi manapun, lalu composite ke kanvas + slice per halaman + jsPDF, upload ke Google Drive, update `pdfUrl` + status `siap_dikirim`. Approve tidak lagi auto-generate PDF di background — modal ini jadi satu-satunya jalur, dipakai baik langsung setelah approve maupun lewat retry manual |
 | `lib/submissions/confirmSentToGa.ts` | Tombol "Sudah Dikirim" setelah copy template WA | Set status `on_proses_ga` |
 | `lib/submissions/markAsDone.ts` | Tombol "Tandai Selesai" (hanya pemilik) | Set status `selesai`, `completedAt` |
 | `lib/users/createUser.ts` | Halaman `/admin/new` (superadmin) | Buat akun Auth (instance app kedua) + dokumen `users/{uid}` |
@@ -191,6 +191,11 @@ Setelah migrasi Spark-plan selesai, sistem submissions diperluas jadi "one gate"
 - **`personalia`** (`lembur`/`cuti`/`izin`): alur yang beda secara material — 1 dokumen upload (bukan items+tanda tangan), dual approval dari `spv` DAN `management` (bukan salah satu), auto-selesai tanpa tahap kirim-ke-GA (lihat varian di "Alur Status"). Modul terisolasi: `submitPersonaliaSubmission.ts` + `reviewPersonaliaSubmission.ts`, tidak menyentuh modul operasional yang sudah ada. `spv` jadi bisa mengajukan `cuti`/`izin` (sebagai karyawan) sekaligus tetap approve kategori lain — lihat tabel User Roles. Template WA-nya beda juga: `buildPersonaliaWaTemplate` di `lib/wa-template.ts`, ditujukan ke HC bukan GA.
 - Role `management` di-relabel jadi "Operational Manager" di seluruh UI (nav, form admin, PDF) — value di database tetap `management`.
 - `lib/monitoring.ts` sudah toleran terhadap tahap yang dilewati (personalia langsung `diajukan` → `selesai`): kolom durasi tahap yang tidak ada history-nya otomatis render `"-"`, tidak perlu perubahan kode.
+
+## Lampiran di Antrian & Visibilitas Semua Pengajuan (2026-09-09)
+
+- Antrian Persetujuan (`/persetujuan`) menampilkan lampiran submission (link ke Drive) lewat `components/attachments-list/AttachmentsList.tsx`, supaya approver bisa cek dokumen pendukung sebelum approve/reject.
+- Halaman `/pengajuan` di-rename jadi "Semua Pengajuan" dan tidak lagi memfilter `requesterId` — menampilkan semua submission (rules-nya memang sudah terbuka sejak "Visibilitas Semua User" di atas, cuma UI-nya yang baru menyusul). Tombol aksi di halaman detail (`/pengajuan/detail`) sekarang digerbangi kepemilikan (`requesterId`/`approverId` cocok dengan `appUser.uid`) supaya non-pemilik tidak melihat tombol yang bakal gagal kalau diklik.
 
 ## Restrukturisasi Role Admin (Admin Terpusat + Data Master Pegawai)
 
