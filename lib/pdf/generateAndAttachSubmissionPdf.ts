@@ -76,6 +76,8 @@ export async function generateAndAttachSubmissionPdf(
     actorId: caller.uid,
     actorRole: caller.role,
     timestamp: serverTimestamp(),
+    submissionNumber: submission.submissionNumber,
+    employeeName: submission.employeeName,
   });
 
   try {
