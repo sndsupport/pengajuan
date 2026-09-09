@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { StatusBadge } from "@/components/status-badge/StatusBadge";
@@ -37,11 +37,7 @@ export default function PengajuanListPage() {
 
   useEffect(() => {
     if (!appUser) return;
-    const q = query(
-      collection(db, "submissions"),
-      where("requesterId", "==", appUser.uid),
-      orderBy("submittedAt", "desc")
-    );
+    const q = query(collection(db, "submissions"), orderBy("submittedAt", "desc"));
     return onSnapshot(
       q,
       (snap) => {
@@ -66,8 +62,8 @@ export default function PengajuanListPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
       <PageHeader
-        title="Pengajuan Saya"
-        description="Daftar seluruh pengajuan kendaraan & perlengkapan yang pernah Anda ajukan."
+        title="Semua Pengajuan"
+        description="Daftar seluruh pengajuan kendaraan & perlengkapan dari semua admin/AWS Supervisor."
         actions={
           <Button asChild>
             <Link href="/pengajuan/new">

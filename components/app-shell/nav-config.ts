@@ -13,7 +13,7 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   {
     href: "/pengajuan",
-    label: "Pengajuan Saya",
+    label: "Semua Pengajuan",
     icon: FileStack,
     roles: ["admin", "spv"],
   },
