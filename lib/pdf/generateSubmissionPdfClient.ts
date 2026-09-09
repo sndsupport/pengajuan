@@ -62,20 +62,22 @@ export function computePdfPageSlices(
   return slices;
 }
 
+import type { SignaturePositionPx } from "./signaturePosition";
+
 export type GenerateSubmissionPdfResult = { pdfUrl: string };
 
-export async function generateSubmissionPdfClient(data: SubmissionPdfData): Promise<GenerateSubmissionPdfResult> {
-  // Rendered inside an isolated iframe document rather than a div appended
-  // to the page: html2canvas clones the whole document to preserve stacking
-  // context, which means it also has to read computed styles for every
-  // element already on the page — including the app's own sidebar/cards/etc,
-  // all styled through this app's Tailwind tokens, which are oklch() colors
-  // (CSS Color 4) that html2canvas's parser can't read at all. That crashed
-  // PDF generation unconditionally (auto on approve, and the manual "Coba
-  // Generate PDF" retry), regardless of anything set on a div living inside
-  // that same document. An iframe gets its own document with no connection
-  // to the parent page's stylesheets, so html2canvas only ever sees the
-  // template's own hex-based <style> block.
+export type BaseCanvasResult = {
+  canvas: HTMLCanvasElement;
+  defaultSignaturePositionPx: SignaturePositionPx;
+};
+
+// Renders the template WITHOUT the approver signature into one tall canvas,
+// and reports where the (now-empty) approver signature box landed on that
+// canvas — this becomes the default drag position in SignaturePlacementModal,
+// so an approver who doesn't care can just confirm without dragging anything.
+export async function renderSubmissionBaseCanvas(
+  data: Omit<SubmissionPdfData, "approverSignatureUrl">
+): Promise<BaseCanvasResult> {
   const iframe = document.createElement("iframe");
   iframe.style.position = "fixed";
   iframe.style.left = "-10000px";
@@ -90,42 +92,102 @@ export async function generateSubmissionPdfClient(data: SubmissionPdfData): Prom
     throw new Error("Gagal menyiapkan dokumen render PDF.");
   }
   iframeDoc.open();
-  iframeDoc.write(buildSubmissionPdfHtml(data));
+  iframeDoc.write(buildSubmissionPdfHtml({ ...data, approverSignatureUrl: null }));
   iframeDoc.close();
 
   try {
     await iframeDoc.fonts.ready;
     await waitForImagesToLoad(iframeDoc);
-    // The template's own body height is auto (grows with content); give the
-    // iframe's viewport the same height so html2canvas doesn't clip it.
     iframe.style.height = `${iframeDoc.body.scrollHeight}px`;
 
-    const canvas = await html2canvas(iframeDoc.body, { useCORS: true, scale: 2, backgroundColor: "#ffffff" });
+    const box = iframeDoc.querySelector("[data-approver-signature-box]") as HTMLElement | null;
+    if (!box) {
+      throw new Error("Template tidak punya blok tanda tangan approver.");
+    }
+    const rect = box.getBoundingClientRect();
+    // scale:2 below means the rendered canvas is exactly 2x RENDER_WIDTH_PX —
+    // computed from the same constant html2canvas is told to scale from,
+    // rather than re-derived from layout, so it can't drift from reality.
+    const scale = 2;
 
-    const pdf = new jsPDF({ unit: "mm", format: "a4" });
-    const slices = computePdfPageSlices(canvas.width, canvas.height, A4_WIDTH_MM, A4_HEIGHT_MM);
+    const canvas = await html2canvas(iframeDoc.body, { useCORS: true, scale, backgroundColor: "#ffffff" });
 
-    slices.forEach((slice, index) => {
-      if (index > 0) {
-        pdf.addPage();
-      }
-      const sliceCanvas = document.createElement("canvas");
-      sliceCanvas.width = canvas.width;
-      sliceCanvas.height = slice.sliceHeightPx;
-      const ctx = sliceCanvas.getContext("2d")!;
-      ctx.drawImage(canvas, 0, slice.sourceYPx, canvas.width, slice.sliceHeightPx, 0, 0, canvas.width, slice.sliceHeightPx);
-      const sliceImageData = sliceCanvas.toDataURL("image/png");
-      const sliceHeightMm = (slice.sliceHeightPx / canvas.width) * A4_WIDTH_MM;
-      pdf.addImage(sliceImageData, "PNG", 0, 0, A4_WIDTH_MM, sliceHeightMm);
-    });
-
-    const pdfBlob = pdf.output("blob");
-    const pdfFile = new File([pdfBlob], `${data.submissionNumber.replace(/\//g, "-")}.pdf`, {
-      type: "application/pdf",
-    });
-    const { fileUrl } = await uploadToDriveClient(pdfFile, "attachment");
-    return { pdfUrl: fileUrl };
+    return {
+      canvas,
+      defaultSignaturePositionPx: {
+        x: rect.left * scale,
+        y: rect.top * scale,
+        width: rect.width * scale,
+        height: rect.height * scale,
+      },
+    };
   } finally {
     document.body.removeChild(iframe);
   }
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    if (!src.startsWith("data:")) {
+      img.crossOrigin = "anonymous";
+    }
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Gagal memuat gambar tanda tangan: ${src}`));
+    img.src = src;
+  });
+}
+
+// Draws the approver signature onto a COPY of the base canvas (the original
+// is left untouched so a modal preview can composite a signature multiple
+// times as the approver drags it around), then runs the same page-slicing +
+// jsPDF assembly the old single-shot generateSubmissionPdfClient used to do.
+export async function compositeSignatureAndBuildPdf(
+  baseCanvas: HTMLCanvasElement,
+  signatureImageUrl: string,
+  positionPx: SignaturePositionPx,
+  submissionNumber: string
+): Promise<GenerateSubmissionPdfResult> {
+  const compositeCanvas = document.createElement("canvas");
+  compositeCanvas.width = baseCanvas.width;
+  compositeCanvas.height = baseCanvas.height;
+  const ctx = compositeCanvas.getContext("2d")!;
+  ctx.drawImage(baseCanvas, 0, 0);
+
+  const signatureImage = await loadImage(signatureImageUrl);
+  ctx.drawImage(signatureImage, positionPx.x, positionPx.y, positionPx.width, positionPx.height);
+
+  const pdf = new jsPDF({ unit: "mm", format: "a4" });
+  const slices = computePdfPageSlices(compositeCanvas.width, compositeCanvas.height, A4_WIDTH_MM, A4_HEIGHT_MM);
+
+  slices.forEach((slice, index) => {
+    if (index > 0) {
+      pdf.addPage();
+    }
+    const sliceCanvas = document.createElement("canvas");
+    sliceCanvas.width = compositeCanvas.width;
+    sliceCanvas.height = slice.sliceHeightPx;
+    const sliceCtx = sliceCanvas.getContext("2d")!;
+    sliceCtx.drawImage(
+      compositeCanvas,
+      0,
+      slice.sourceYPx,
+      compositeCanvas.width,
+      slice.sliceHeightPx,
+      0,
+      0,
+      compositeCanvas.width,
+      slice.sliceHeightPx
+    );
+    const sliceImageData = sliceCanvas.toDataURL("image/png");
+    const sliceHeightMm = (slice.sliceHeightPx / compositeCanvas.width) * A4_WIDTH_MM;
+    pdf.addImage(sliceImageData, "PNG", 0, 0, A4_WIDTH_MM, sliceHeightMm);
+  });
+
+  const pdfBlob = pdf.output("blob");
+  const pdfFile = new File([pdfBlob], `${submissionNumber.replace(/\//g, "-")}.pdf`, {
+    type: "application/pdf",
+  });
+  const { fileUrl } = await uploadToDriveClient(pdfFile, "attachment");
+  return { pdfUrl: fileUrl };
 }
