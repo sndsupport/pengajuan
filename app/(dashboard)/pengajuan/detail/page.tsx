@@ -166,6 +166,7 @@ function PengajuanDetailContent() {
   async function handleOpenGeneratePdf() {
     if (!submission || !appUser) return;
     setPdfError(null);
+    setGeneratingPdf(true);
     try {
       const itemsSnap = await getDocs(collection(db, "submissions", submission.id, "items"));
       const items: SubmissionPdfItem[] = itemsSnap.docs.map((d) => {
@@ -199,6 +200,8 @@ function PengajuanDetailContent() {
       });
     } catch (err) {
       setPdfError(err instanceof Error ? err.message : "Gagal menyiapkan preview PDF.");
+    } finally {
+      setGeneratingPdf(false);
     }
   }
 
