@@ -30,6 +30,7 @@ export function SignaturePlacementModal({
   const dragState = useRef<{ startClientX: number; startClientY: number; startPosition: SignaturePositionPx } | null>(
     null
   );
+  const attachedListenersRef = useRef<{ move: (e: PointerEvent) => void; up: () => void } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,8 +54,10 @@ export function SignaturePlacementModal({
 
   useEffect(() => {
     return () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", handlePointerUp);
+      if (attachedListenersRef.current) {
+        window.removeEventListener("pointermove", attachedListenersRef.current.move);
+        window.removeEventListener("pointerup", attachedListenersRef.current.up);
+      }
     };
   }, []);
 
@@ -66,6 +69,7 @@ export function SignaturePlacementModal({
     dragState.current = { startClientX: e.clientX, startClientY: e.clientY, startPosition: position };
     window.addEventListener("pointermove", handlePointerMove);
     window.addEventListener("pointerup", handlePointerUp);
+    attachedListenersRef.current = { move: handlePointerMove, up: handlePointerUp };
   }
 
   function handlePointerMove(e: PointerEvent) {
@@ -88,6 +92,7 @@ export function SignaturePlacementModal({
     dragState.current = null;
     window.removeEventListener("pointermove", handlePointerMove);
     window.removeEventListener("pointerup", handlePointerUp);
+    attachedListenersRef.current = null;
   }
 
   async function handleConfirmClick() {
