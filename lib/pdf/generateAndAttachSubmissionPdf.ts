@@ -87,6 +87,16 @@ export async function generateAndAttachSubmissionPdf(
     employeeName: submission.employeeName,
   });
 
+  // Someone else (e.g. another caller with this same submission's
+  // signature-placement modal open around the same time) may have already
+  // finished this disetujui -> siap_dikirim transition while we were
+  // mid-render/upload, so this commit fails against the now-stale status.
+  // We fall back to adopting whatever they wrote instead of surfacing a
+  // confusing permission error. Known limitation: since signaturePositionPx
+  // is caller-supplied, the winner's chosen position is not necessarily
+  // ours -- the loser's placement is silently discarded and the loser's
+  // own already-uploaded PDF is left orphaned in Drive. We accept that for
+  // now rather than trying to prevent the race here.
   try {
     await batch.commit();
   } catch (error) {
