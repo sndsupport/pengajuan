@@ -197,7 +197,7 @@ function PengajuanDetailContent() {
         <StatusBadge status={submission.status} />
       </div>
 
-      {submission.status === "perlu_revisi" && (
+      {submission.status === "perlu_revisi" && submission.requesterId === appUser?.uid && (
         <Card
           style={{
             borderColor: `${STATUS_STYLES.perlu_revisi.color}66`,
@@ -224,28 +224,33 @@ function PengajuanDetailContent() {
 
       {submission.type !== "personalia" && (
         <>
-          {submission.status === "disetujui" && !submission.pdfUrl && appUser && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">PDF pengajuan belum berhasil dibuat</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {pdfError && (
-                  <p role="alert" className="text-sm text-destructive">
-                    {pdfError}
-                  </p>
-                )}
-                <Button type="button" size="sm" disabled={generatingPdf} onClick={handleGeneratePdf}>
-                  {generatingPdf ? "Memproses..." : "Coba Generate PDF"}
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+          {submission.status === "disetujui" &&
+            !submission.pdfUrl &&
+            appUser &&
+            (submission.requesterId === appUser.uid || submission.approverId === appUser.uid) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">PDF pengajuan belum berhasil dibuat</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {pdfError && (
+                    <p role="alert" className="text-sm text-destructive">
+                      {pdfError}
+                    </p>
+                  )}
+                  <Button type="button" size="sm" disabled={generatingPdf} onClick={handleGeneratePdf}>
+                    {generatingPdf ? "Memproses..." : "Coba Generate PDF"}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
           {submission.status === "siap_dikirim" && appUser && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Kirim ke GA lewat WhatsApp</CardTitle>
+                <CardTitle className="text-base">
+                  {submission.requesterId === appUser.uid ? "Kirim ke GA lewat WhatsApp" : "PDF Pengajuan"}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <a
@@ -257,57 +262,61 @@ function PengajuanDetailContent() {
                   Lihat PDF
                   <ExternalLink className="h-3.5 w-3.5" />
                 </a>
-                <Textarea
-                  readOnly
-                  rows={8}
-                  className="font-mono text-xs"
-                  value={buildWaTemplate(
-                    {
-                      submissionNumber: submission.submissionNumber,
-                      type: submission.type,
-                      subType: submission.subType,
-                      branch: submission.branch,
-                      employeeName: submission.employeeName,
-                      pdfUrl: submission.pdfUrl,
-                    },
-                    appUser.name
-                  )}
-                />
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" size="sm" onClick={handleCopy}>
-                    <Copy className="h-4 w-4" />
-                    Salin Template
-                  </Button>
-                  <span role="status" aria-live="polite">
-                    {copyFeedback && (
-                      <span
-                        className="flex items-center gap-1 text-sm font-medium"
-                        style={{ color: STATUS_STYLES.selesai.color }}
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                        Disalin!
+                {submission.requesterId === appUser.uid && (
+                  <>
+                    <Textarea
+                      readOnly
+                      rows={8}
+                      className="font-mono text-xs"
+                      value={buildWaTemplate(
+                        {
+                          submissionNumber: submission.submissionNumber,
+                          type: submission.type,
+                          subType: submission.subType,
+                          branch: submission.branch,
+                          employeeName: submission.employeeName,
+                          pdfUrl: submission.pdfUrl,
+                        },
+                        appUser.name
+                      )}
+                    />
+                    <div className="flex items-center gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={handleCopy}>
+                        <Copy className="h-4 w-4" />
+                        Salin Template
+                      </Button>
+                      <span role="status" aria-live="polite">
+                        {copyFeedback && (
+                          <span
+                            className="flex items-center gap-1 text-sm font-medium"
+                            style={{ color: STATUS_STYLES.selesai.color }}
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                            Disalin!
+                          </span>
+                        )}
                       </span>
+                    </div>
+                    {copyError && (
+                      <p role="alert" className="text-sm text-destructive">
+                        {copyError}
+                      </p>
                     )}
-                  </span>
-                </div>
-                {copyError && (
-                  <p role="alert" className="text-sm text-destructive">
-                    {copyError}
-                  </p>
+                    {confirmError && (
+                      <p role="alert" className="text-sm text-destructive">
+                        {confirmError}
+                      </p>
+                    )}
+                    <Button type="button" size="sm" disabled={confirming} onClick={handleConfirm}>
+                      {confirming ? "Memproses..." : "Konfirmasi Sudah Dikirim ke GA"}
+                    </Button>
+                  </>
                 )}
-                {confirmError && (
-                  <p role="alert" className="text-sm text-destructive">
-                    {confirmError}
-                  </p>
-                )}
-                <Button type="button" size="sm" disabled={confirming} onClick={handleConfirm}>
-                  {confirming ? "Memproses..." : "Konfirmasi Sudah Dikirim ke GA"}
-                </Button>
               </CardContent>
             </Card>
           )}
 
-          {submission.status === "on_proses_ga" && appUser && (
+          {submission.status === "on_proses_ga" && appUser && submission.requesterId === appUser.uid && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Barang/layanan sudah diterima?</CardTitle>
