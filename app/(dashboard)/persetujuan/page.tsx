@@ -128,6 +128,7 @@ export default function PersetujuanPage() {
     const signatureUrl = signatureBySubmission[row.id];
     if (!signatureUrl) return;
     setActionErrorBySubmission((prev) => ({ ...prev, [row.id]: "" }));
+    setBusyId(row.id);
     try {
       const itemsSnap = await getDocs(collection(db, "submissions", row.id, "items"));
       const items: SubmissionPdfItem[] = itemsSnap.docs.map((d) => {
@@ -165,6 +166,8 @@ export default function PersetujuanPage() {
         ...prev,
         [row.id]: err instanceof Error ? err.message : "Gagal menyiapkan preview PDF.",
       }));
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -177,7 +180,14 @@ export default function PersetujuanPage() {
         { submissionId: row.id, decision: "approve", approverSignatureUrl: signatureBySubmission[row.id] },
         appUser
       );
-      await generateAndAttachSubmissionPdf(row.id, appUser, position);
+      try {
+        await generateAndAttachSubmissionPdf(row.id, appUser, position);
+      } catch (pdfError) {
+        throw new Error(
+          "Pengajuan sudah disetujui, tapi pembuatan PDF gagal. Buka halaman detail pengajuan ini untuk mencoba lagi (tombol \"Coba Generate PDF\").",
+          { cause: pdfError }
+        );
+      }
       setPlacement(null);
     } finally {
       setBusyId(null);
