@@ -86,4 +86,15 @@ describe("buildSubmissionPdfHtml", () => {
     expect(html).toContain("Budi Santoso");
     expect(html).toContain("Siti Aminah");
   });
+
+  it("renders an empty signature box (no <img>) when approverSignatureUrl is null", () => {
+    const html = buildSubmissionPdfHtml({ ...baseData, approverSignatureUrl: null });
+    expect(html).not.toContain('alt="Tanda tangan approver"');
+    expect(html).toContain("data-approver-signature-box");
+  });
+
+  it("still renders the requester's signature when approverSignatureUrl is null", () => {
+    const html = buildSubmissionPdfHtml({ ...baseData, approverSignatureUrl: null });
+    expect(html).toContain("https://drive.google.com/uc?export=view&amp;id=req-sig");
+  });
 });

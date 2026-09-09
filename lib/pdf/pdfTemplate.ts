@@ -29,7 +29,10 @@ export type SubmissionPdfData = {
   requesterSignatureUrl: string;
   approverName: string;
   approverRole: "spv" | "management";
-  approverSignatureUrl: string;
+  // null while rendering the base canvas for interactive TTD placement — the
+  // signature is composited onto the canvas afterwards instead of baked into
+  // this HTML/CSS layout. See lib/pdf/generateSubmissionPdfClient.ts.
+  approverSignatureUrl: string | null;
   submittedAt: Date;
   approvedAt: Date;
   items: SubmissionPdfItem[];
@@ -145,7 +148,11 @@ export function buildSubmissionPdfHtml(data: SubmissionPdfData): string {
     </div>
     <div class="signature-block">
       <div>Mengetahui</div>
-      <div class="signature-img-box"><img src="${escapeHtml(data.approverSignatureUrl)}" alt="Tanda tangan approver" /></div>
+      <div class="signature-img-box" data-approver-signature-box>${
+        data.approverSignatureUrl
+          ? `<img src="${escapeHtml(data.approverSignatureUrl)}" alt="Tanda tangan approver" />`
+          : ""
+      }</div>
       <div class="signature-line">${escapeHtml(data.approverName)}<br/>${APPROVER_ROLE_LABEL[data.approverRole]}</div>
     </div>
   </div>
