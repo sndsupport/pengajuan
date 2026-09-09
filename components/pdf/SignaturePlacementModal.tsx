@@ -51,6 +51,13 @@ export function SignaturePlacementModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, []);
+
   const displayScale = canvas ? DISPLAY_WIDTH_PX / canvas.width : 1;
 
   function handlePointerDown(e: React.PointerEvent) {
