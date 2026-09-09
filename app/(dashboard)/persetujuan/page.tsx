@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { generateAndAttachSubmissionPdf } from "@/lib/pdf/generateAndAttachSubmissionPdf";
+import { SignaturePlacementModal } from "@/components/pdf/SignaturePlacementModal";
+import type { SubmissionPdfData, SubmissionPdfItem } from "@/lib/pdf/pdfTemplate";
+import type { SignaturePositionPx } from "@/lib/pdf/signaturePosition";
 import { StatusBadge } from "@/components/status-badge/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,7 +31,10 @@ type QueueRow = {
   type: string;
   subType: string;
   branch: string;
+  department: string;
+  position: string;
   employeeName: string;
+  requesterSignatureUrl: string;
   spvApproval: ApprovalRecord;
   managerApproval: ApprovalRecord;
   submittedAt: Date | null;
@@ -48,6 +55,11 @@ export default function PersetujuanPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [actionErrorBySubmission, setActionErrorBySubmission] = useState<Record<string, string>>({});
+  const [placement, setPlacement] = useState<{
+    row: QueueRow;
+    data: Omit<SubmissionPdfData, "approverSignatureUrl">;
+    signatureImageUrl: string;
+  } | null>(null);
 
   useEffect(() => {
     // Per the brief's role table, superadmin can read/monitor but not approve/reject —
@@ -71,7 +83,10 @@ export default function PersetujuanPage() {
             type: d.data().type,
             subType: d.data().subType,
             branch: d.data().branch,
+            department: d.data().department,
+            position: d.data().position,
             employeeName: d.data().employeeName,
+            requesterSignatureUrl: d.data().requesterSignatureUrl,
             spvApproval: d.data().spvApproval ?? null,
             managerApproval: d.data().managerApproval ?? null,
             submittedAt: d.data().submittedAt?.toDate() ?? null,
@@ -89,18 +104,13 @@ export default function PersetujuanPage() {
     setSignatureBySubmission((prev) => ({ ...prev, [submissionId]: "" }));
   }
 
-  async function handleDecision(submissionId: string, decision: "approve" | "reject") {
+  async function handleReject(submissionId: string) {
     if (!appUser) return;
     setBusyId(submissionId);
     setActionErrorBySubmission((prev) => ({ ...prev, [submissionId]: "" }));
     try {
       await reviewSubmission(
-        {
-          submissionId,
-          decision,
-          rejectionNote: noteBySubmission[submissionId],
-          approverSignatureUrl: decision === "approve" ? signatureBySubmission[submissionId] : undefined,
-        },
+        { submissionId, decision: "reject", rejectionNote: noteBySubmission[submissionId] },
         appUser
       );
     } catch (err) {
@@ -108,6 +118,67 @@ export default function PersetujuanPage() {
         ...prev,
         [submissionId]: err instanceof Error ? err.message : "Gagal memproses review.",
       }));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleApproveClick(row: QueueRow) {
+    if (!appUser) return;
+    const signatureUrl = signatureBySubmission[row.id];
+    if (!signatureUrl) return;
+    setActionErrorBySubmission((prev) => ({ ...prev, [row.id]: "" }));
+    try {
+      const itemsSnap = await getDocs(collection(db, "submissions", row.id, "items"));
+      const items: SubmissionPdfItem[] = itemsSnap.docs.map((d) => {
+        const item = d.data();
+        return {
+          itemName: item.itemName as string,
+          brandType: item.brandType as string,
+          km: (item.km as number | null) ?? null,
+          quantity: item.quantity as number,
+          unit: item.unit as string,
+          description: item.description as string,
+        };
+      });
+      setPlacement({
+        row,
+        signatureImageUrl: signatureUrl,
+        data: {
+          submissionNumber: row.submissionNumber,
+          type: row.type as "kendaraan" | "perlengkapan" | "gedung_fasilitas",
+          subType: row.subType,
+          branch: row.branch,
+          department: row.department,
+          position: row.position,
+          requesterName: row.employeeName,
+          requesterSignatureUrl: row.requesterSignatureUrl,
+          approverName: appUser.name,
+          approverRole: appUser.role as "spv" | "management",
+          submittedAt: row.submittedAt ?? new Date(),
+          approvedAt: new Date(),
+          items,
+        },
+      });
+    } catch (err) {
+      setActionErrorBySubmission((prev) => ({
+        ...prev,
+        [row.id]: err instanceof Error ? err.message : "Gagal menyiapkan preview PDF.",
+      }));
+    }
+  }
+
+  async function handleConfirmPlacement(position: SignaturePositionPx) {
+    if (!placement || !appUser) return;
+    const { row } = placement;
+    setBusyId(row.id);
+    try {
+      await reviewSubmission(
+        { submissionId: row.id, decision: "approve", approverSignatureUrl: signatureBySubmission[row.id] },
+        appUser
+      );
+      await generateAndAttachSubmissionPdf(row.id, appUser, position);
+      setPlacement(null);
     } finally {
       setBusyId(null);
     }
@@ -290,7 +361,7 @@ export default function PersetujuanPage() {
                     <Button
                       size="lg"
                       disabled={busyId === row.id || !hasSignature || !appUser}
-                      onClick={() => handleDecision(row.id, "approve")}
+                      onClick={() => handleApproveClick(row)}
                     >
                       <Check className="h-4 w-4" />
                       Setujui
@@ -299,7 +370,7 @@ export default function PersetujuanPage() {
                       size="lg"
                       variant="destructive"
                       disabled={busyId === row.id || !appUser || !noteBySubmission[row.id]?.trim()}
-                      onClick={() => handleDecision(row.id, "reject")}
+                      onClick={() => handleReject(row.id)}
                     >
                       <X className="h-4 w-4" />
                       Tolak
@@ -310,6 +381,15 @@ export default function PersetujuanPage() {
             );
           })}
         </div>
+      )}
+
+      {placement && (
+        <SignaturePlacementModal
+          data={placement.data}
+          signatureImageUrl={placement.signatureImageUrl}
+          onConfirm={handleConfirmPlacement}
+          onCancel={() => setPlacement(null)}
+        />
       )}
     </div>
   );
