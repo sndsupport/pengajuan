@@ -195,7 +195,7 @@ Setelah migrasi Spark-plan selesai, sistem submissions diperluas jadi "one gate"
 ## Lampiran di Antrian & Visibilitas Semua Pengajuan (2026-09-09)
 
 - Antrian Persetujuan (`/persetujuan`) menampilkan lampiran submission (link ke Drive) lewat `components/attachments-list/AttachmentsList.tsx`, supaya approver bisa cek dokumen pendukung sebelum approve/reject.
-- Halaman `/pengajuan` di-rename jadi "Semua Pengajuan" dan tidak lagi memfilter `requesterId` — menampilkan semua submission (rules-nya memang sudah terbuka sejak "Visibilitas Semua User" di atas, cuma UI-nya yang baru menyusul). Tombol aksi di halaman detail (`/pengajuan/detail`) sekarang digerbangi kepemilikan (`requesterId`/`approverId` cocok dengan `appUser.uid`) supaya non-pemilik tidak melihat tombol yang bakal gagal kalau diklik.
+- Halaman `/pengajuan` di-rename jadi "Semua Pengajuan" dan tidak lagi memfilter `requesterId` — menampilkan semua submission (rules `submissions/{id}` di bagian "Firestore Security Rules" di atas memang sudah mengizinkan baca oleh siapa saja yang login sejak 2026-09-04, cuma UI-nya yang baru menyusul sekarang). Tombol aksi di halaman detail (`/pengajuan/detail`) sekarang digerbangi kepemilikan (`requesterId`/`approverId` cocok dengan `appUser.uid`) supaya non-pemilik tidak melihat tombol yang bakal gagal kalau diklik.
 
 ## Restrukturisasi Role Admin (Admin Terpusat + Data Master Pegawai)
 
@@ -222,7 +222,7 @@ Halaman `/admin/data` (superadmin only, lihat `docs/superpowers/specs/2026-09-04
 /app
   /(auth)/login
   /(dashboard)
-    /pengajuan          # list & buat pengajuan (admin)
+    /pengajuan          # Semua Pengajuan: list & buat pengajuan (admin, spv)
     /persetujuan        # antrian approve (spv, management)
     /monitoring          # dashboard semua pengajuan
     /admin               # manajemen user & pengaturan (superadmin)
