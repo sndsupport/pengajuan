@@ -49,9 +49,12 @@ function PengajuanDetailContent() {
 
   useEffect(() => {
     if (!id) return;
+    setError(null);
+    setSubmission(null);
     const unsubSub = onSnapshot(
       doc(db, "submissions", id),
       (snap) => {
+        setError(null);
         setSubmission(snap.exists() ? { id: snap.id, ...snap.data() } : null);
       },
       (err) => {
@@ -62,6 +65,7 @@ function PengajuanDetailContent() {
     const unsubHistory = onSnapshot(
       historyQuery,
       (snap) => {
+        setError(null);
         setHistory(
           snap.docs.map((d) => ({
             id: d.id,
