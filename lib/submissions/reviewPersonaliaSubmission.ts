@@ -54,6 +54,9 @@ export async function reviewPersonaliaSubmission(
     if (submission.status !== "diajukan") {
       throw new Error("Hanya pengajuan berstatus diajukan yang bisa direview.");
     }
+    if (submission.requesterId === caller.uid) {
+      throw new Error("Anda tidak bisa mereview pengajuan milik Anda sendiri.");
+    }
 
     const historyRef = doc(collection(submissionRef, "statusHistory"));
 

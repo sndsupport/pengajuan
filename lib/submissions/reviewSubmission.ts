@@ -22,6 +22,9 @@ export async function reviewSubmission(rawInput: unknown, caller: AppUser): Prom
   if (!submission) {
     throw new Error("Pengajuan tidak ditemukan.");
   }
+  if (submission.type === "personalia") {
+    throw new Error("Pengajuan personalia direview lewat alur dual approval, bukan alur ini.");
+  }
   if (submission.status !== "diajukan") {
     throw new Error("Hanya pengajuan berstatus diajukan yang bisa direview.");
   }

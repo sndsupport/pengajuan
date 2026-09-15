@@ -49,6 +49,20 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && request.resource.data.requesterId == request.auth.uid
         && request.resource.data.status == 'diajukan'
+        // Every approval/completion field must start empty -- create isn't guarded by
+        // hasOnly() like the update transitions below (the legit field set differs by
+        // type), so this is what stops a caller from forging e.g. a pre-filled
+        // spvApproval/approverId at creation time to short-circuit the approval flow
+        // the update rules below otherwise enforce.
+        && request.resource.data.get('approverId', null) == null
+        && request.resource.data.get('approverRole', null) == null
+        && request.resource.data.get('approverSignatureUrl', null) == null
+        && request.resource.data.get('pdfUrl', null) == null
+        && request.resource.data.get('approvedAt', null) == null
+        && request.resource.data.get('sentToGaAt', null) == null
+        && request.resource.data.get('completedAt', null) == null
+        && request.resource.data.get('spvApproval', null) == null
+        && request.resource.data.get('managerApproval', null) == null
         && (
           isRequesterRole()
           || (userRole() == 'spv'
@@ -61,14 +75,23 @@ service cloud.firestore {
         && request.resource.data.requesterId == resource.data.requesterId
         && (
         // Resubmit setelah revisi: pemilik, status lama perlu_revisi -> diajukan
+        // (personalia excluded -- it must go through the dedicated personalia resubmit
+        // branch below, which forces spvApproval/managerApproval back to null; this
+        // branch's hasOnly() never touches those fields, so a stale prior approval
+        // would otherwise silently survive into the resubmitted revision)
         (resource.data.requesterId == request.auth.uid
+          && resource.data.get('type', null) != 'personalia'
           && resource.data.status == 'perlu_revisi'
           && request.resource.data.status == 'diajukan'
           && request.resource.data.diff(resource.data).affectedKeys()
             .hasOnly(['type', 'subType', 'employeeId', 'employeeName', 'branch', 'department', 'position', 'requesterSignatureUrl', 'status', 'rejectionNote']))
         ||
         // Review - approve: spv/management, status lama diajukan -> disetujui
+        // (personalia excluded -- it never has a 'disetujui' status; it must go through
+        // the dedicated dual-approval branches below, which require both spv AND
+        // management before reaching 'selesai')
         (userRole() in ['spv', 'management']
+          && resource.data.get('type', null) != 'personalia'
           && resource.data.status == 'diajukan'
           && request.resource.data.status == 'disetujui'
           && request.resource.data.approverId == request.auth.uid
@@ -124,9 +147,12 @@ service cloud.firestore {
             .hasOnly(['subType', 'employeeId', 'employeeName', 'branch', 'department', 'position', 'periodStart', 'periodEnd', 'status', 'rejectionNote', 'spvApproval', 'managerApproval']))
         ||
         // Personalia partial approval: spv/management mengisi approval milik sendiri, status tetap diajukan
+        // (requesterId != auth.uid: a spv can self-submit their own cuti/izin, but must
+        // not be able to also fill the spvApproval slot on their own submission)
         (resource.data.type == 'personalia'
           && resource.data.status == 'diajukan'
           && request.resource.data.status == 'diajukan'
+          && resource.data.requesterId != request.auth.uid
           && (
             (userRole() == 'spv'
               && resource.data.spvApproval == null
@@ -145,6 +171,7 @@ service cloud.firestore {
         (resource.data.type == 'personalia'
           && resource.data.status == 'diajukan'
           && request.resource.data.status == 'selesai'
+          && resource.data.requesterId != request.auth.uid
           && (
             (userRole() == 'spv'
               && resource.data.managerApproval != null

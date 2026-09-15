@@ -73,7 +73,11 @@ export default function NewPengajuanPage() {
   const [serverError, setServerError] = useState<string | null>(null);
   const [isLoadingResubmit, setIsLoadingResubmit] = useState(!!resubmitId);
   const [resubmitError, setResubmitError] = useState<string | null>(null);
-  const [signatureMode, setSignatureMode] = useState<"gambar" | "upload">("gambar");
+  // Defaults to "upload" (not "gambar"/draw): the pemohon here is always the employees-
+  // picker-selected pegawai, not the admin filling this form, so their signature must
+  // come from a photo/scan they sent in -- an admin drawing with a mouse would attribute
+  // a fake signature to that pegawai. See CLAUDE.md "Restrukturisasi Role Admin".
+  const [signatureMode, setSignatureMode] = useState<"gambar" | "upload">("upload");
   const [signatureFileName, setSignatureFileName] = useState<string | null>(null);
   const [selectedEmployeeBranch, setSelectedEmployeeBranch] = useState<string | null>(null);
 

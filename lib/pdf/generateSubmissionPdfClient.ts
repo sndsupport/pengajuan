@@ -3,7 +3,7 @@ import html2canvas from "html2canvas";
 import { buildSubmissionPdfHtml, SubmissionPdfData } from "./pdfTemplate";
 // Relative import (not "@/lib/drive-upload"): avoids pulling in a path-alias
 // resolution plugin for Vitest just for this one import.
-import { uploadToDriveClient } from "../drive-upload";
+import { uploadToDriveClient, resolveDriveImageAsDataUrl } from "../drive-upload";
 
 const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297;
@@ -91,11 +91,14 @@ export async function renderSubmissionBaseCanvas(
     document.body.removeChild(iframe);
     throw new Error("Gagal menyiapkan dokumen render PDF.");
   }
-  iframeDoc.open();
-  iframeDoc.write(buildSubmissionPdfHtml({ ...data, approverSignatureUrl: null }));
-  iframeDoc.close();
 
   try {
+    const requesterSignatureUrl = await resolveDriveImageAsDataUrl(data.requesterSignatureUrl);
+
+    iframeDoc.open();
+    iframeDoc.write(buildSubmissionPdfHtml({ ...data, requesterSignatureUrl, approverSignatureUrl: null }));
+    iframeDoc.close();
+
     await iframeDoc.fonts.ready;
     await waitForImagesToLoad(iframeDoc);
     iframe.style.height = `${iframeDoc.body.scrollHeight}px`;
@@ -154,7 +157,7 @@ export async function compositeSignatureAndBuildPdf(
   const ctx = compositeCanvas.getContext("2d")!;
   ctx.drawImage(baseCanvas, 0, 0);
 
-  const signatureImage = await loadImage(signatureImageUrl);
+  const signatureImage = await loadImage(await resolveDriveImageAsDataUrl(signatureImageUrl));
   ctx.drawImage(signatureImage, positionPx.x, positionPx.y, positionPx.width, positionPx.height);
 
   const pdf = new jsPDF({ unit: "mm", format: "a4" });

@@ -184,6 +184,39 @@ export async function uploadToDriveClient(
   return { fileId: uploaded.id, fileUrl };
 }
 
+const DRIVE_VIEW_URL_FILE_ID_PATTERN = /^https:\/\/drive\.google\.com\/uc\?export=view&id=([^&]+)$/;
+
+/**
+ * Drive's `uc?export=view` links (used for signature images, see uploadToDriveClient
+ * above) don't send CORS headers, so they can't be read back into a <canvas> for PDF
+ * generation (html2canvas's useCORS fetch, and the plain <img crossorigin> load in
+ * compositeSignatureAndBuildPdf, both fail silently or throw). Resolving to a data:
+ * URL first sidesteps that entirely -- a data: URL is never cross-origin, so nothing
+ * downstream needs CORS to succeed. Non-Drive-signature URLs (data: URLs from
+ * SignaturePad) pass through unchanged.
+ */
+export async function resolveDriveImageAsDataUrl(url: string): Promise<string> {
+  const match = url.match(DRIVE_VIEW_URL_FILE_ID_PATTERN);
+  if (!match) {
+    return url;
+  }
+  const fileId = match[1];
+  const accessToken = await getDriveAccessToken();
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    throw new Error(`Gagal mengambil gambar tanda tangan dari Google Drive (${res.status}).`);
+  }
+  const blob = await res.blob();
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Gagal membaca gambar tanda tangan."));
+    reader.readAsDataURL(blob);
+  });
+}
+
 export async function deleteFromDriveClient(fileId: string): Promise<void> {
   const accessToken = await getDriveAccessToken();
   const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {

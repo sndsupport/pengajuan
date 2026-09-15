@@ -215,6 +215,29 @@ describe("firestore.rules", () => {
       );
     });
 
+    it("denies approving a personalia submission via the generic (single-approver) approve rule", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("sub-pers-generic-approve").set({
+          requesterId: "uid-admin",
+          status: "diajukan",
+          type: "personalia",
+          subType: "cuti",
+          spvApproval: null,
+          managerApproval: null,
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-pers-generic-approve").update({
+          status: "disetujui",
+          approverId: "uid-spv",
+          approverRole: "spv",
+          approverSignatureUrl: "https://drive.google.com/uc?export=view&id=sig",
+          approverName: "Siti Aminah",
+        })
+      );
+    });
+
     it("allows the owner to confirm sent to GA when siap_dikirim", async () => {
       await testEnv.withSecurityRulesDisabled(async (context) => {
         await context.firestore().collection("submissions").doc("sub-siap").set({
@@ -915,6 +938,32 @@ describe("firestore.rules", () => {
         })
       );
     });
+
+    it("denies forging a pre-filled spvApproval at creation time", async () => {
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(
+        db.collection("submissions").doc("pers-forge-1").set({
+          requesterId: "uid-admin",
+          status: "diajukan",
+          type: "personalia",
+          subType: "cuti",
+          spvApproval: { approverId: "uid-spv", approverName: "Siti Aminah", note: null, decidedAt: new Date() },
+          managerApproval: null,
+        })
+      );
+    });
+
+    it("denies forging approver fields on a non-personalia submission at creation time", async () => {
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(
+        db.collection("submissions").doc("sub-forge-1").set({
+          requesterId: "uid-admin",
+          status: "diajukan",
+          approverId: "uid-spv",
+          approverRole: "spv",
+        })
+      );
+    });
   });
 
   describe("personalia submissions — dual approval transitions", () => {
@@ -1001,6 +1050,51 @@ describe("firestore.rules", () => {
           status: "selesai",
           completedAt: new Date(),
           managerApproval: { approverId: "uid-mgmt", approverName: "Andi Wijaya", note: null, decidedAt: new Date() },
+        })
+      );
+    });
+
+    it("denies an spv from partially approving their own self-submitted cuti/izin", async () => {
+      await seedPersonalia("pers-self-1", { requesterId: "uid-spv" });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("submissions").doc("pers-self-1").update({
+          spvApproval: { approverId: "uid-spv", approverName: "Siti Aminah", note: null, decidedAt: new Date() },
+        })
+      );
+    });
+
+    it("denies management from completing final approval on their own self-submitted personalia", async () => {
+      await seedPersonalia("pers-self-2", {
+        requesterId: "uid-mgmt",
+        spvApproval: { approverId: "uid-spv", approverName: "Siti Aminah", note: null, decidedAt: new Date() },
+      });
+      const db = testEnv.authenticatedContext("uid-mgmt").firestore();
+      await assertFails(
+        db.collection("submissions").doc("pers-self-2").update({
+          status: "selesai",
+          completedAt: new Date(),
+          managerApproval: { approverId: "uid-mgmt", approverName: "Andi Wijaya", note: null, decidedAt: new Date() },
+        })
+      );
+    });
+
+    it("denies resubmitting a personalia submission via the generic (non-personalia) resubmit rule, which would let a stale approval survive", async () => {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await context.firestore().collection("submissions").doc("pers-stale-1").set({
+          requesterId: "uid-admin",
+          status: "perlu_revisi",
+          type: "personalia",
+          subType: "cuti",
+          spvApproval: { approverId: "uid-spv", approverName: "Siti Aminah", note: null, decidedAt: new Date() },
+          managerApproval: null,
+        });
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(
+        db.collection("submissions").doc("pers-stale-1").update({
+          status: "diajukan",
+          rejectionNote: null,
         })
       );
     });
