@@ -51,21 +51,33 @@ function PengajuanDetailContent() {
     if (!id) return;
     setError(null);
     setSubmission(null);
+    // Both submissions and statusHistory only require isSignedIn() to read (no
+    // ownership check) -- a signed-in user genuinely losing access mid-view isn't a
+    // realistic case here. In practice this error callback fires from a transient
+    // realtime-stream hiccup (tab backgrounded then resumed, auth token mid-refresh
+    // during reconnect), which the SDK recovers from on its own. So only let it blank
+    // out the page before the first successful load; after that, a submission already
+    // on screen must not flicker away because of a reconnect blip.
+    let hasLoadedSubmission = false;
     const unsubSub = onSnapshot(
       doc(db, "submissions", id),
       (snap) => {
+        hasLoadedSubmission = true;
         setError(null);
         setSubmission(snap.exists() ? { id: snap.id, ...snap.data() } : null);
       },
       (err) => {
-        setError(err.code);
+        if (!hasLoadedSubmission) {
+          setError(err.code);
+        } else {
+          console.error("submissions onSnapshot error after initial load", err);
+        }
       }
     );
     const historyQuery = query(collection(db, "submissions", id, "statusHistory"), orderBy("timestamp", "asc"));
     const unsubHistory = onSnapshot(
       historyQuery,
       (snap) => {
-        setError(null);
         setHistory(
           snap.docs.map((d) => ({
             id: d.id,
@@ -77,7 +89,8 @@ function PengajuanDetailContent() {
         );
       },
       (err) => {
-        setError(err.code);
+        // Losing the history stream shouldn't hide the whole submission -- just log it.
+        console.error("statusHistory onSnapshot error", err);
       }
     );
     return () => {
