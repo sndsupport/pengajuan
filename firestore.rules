@@ -158,12 +158,16 @@ service cloud.firestore {
               && resource.data.spvApproval == null
               && request.resource.data.spvApproval.approverId == request.auth.uid
               && request.resource.data.spvApproval.approverName == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.name
+              && request.resource.data.spvApproval.signatureUrl is string
+              && request.resource.data.spvApproval.signatureUrl.size() > 0
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['spvApproval']))
             ||
             (userRole() == 'management'
               && resource.data.managerApproval == null
               && request.resource.data.managerApproval.approverId == request.auth.uid
               && request.resource.data.managerApproval.approverName == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.name
+              && request.resource.data.managerApproval.signatureUrl is string
+              && request.resource.data.managerApproval.signatureUrl.size() > 0
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['managerApproval']))
           ))
         ||
@@ -177,14 +181,31 @@ service cloud.firestore {
               && resource.data.managerApproval != null
               && resource.data.spvApproval == null
               && request.resource.data.spvApproval.approverId == request.auth.uid
+              && request.resource.data.spvApproval.signatureUrl is string
+              && request.resource.data.spvApproval.signatureUrl.size() > 0
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['spvApproval', 'status', 'completedAt']))
             ||
             (userRole() == 'management'
               && resource.data.spvApproval != null
               && resource.data.managerApproval == null
               && request.resource.data.managerApproval.approverId == request.auth.uid
+              && request.resource.data.managerApproval.signatureUrl is string
+              && request.resource.data.managerApproval.signatureUrl.size() > 0
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['managerApproval', 'status', 'completedAt']))
           ))
+        ||
+        // Personalia PDF generation: setelah dual approval lengkap (status sudah selesai),
+        // salah satu dari dua approver membuat/retry PDF berisi kedua TTD. Tidak ada
+        // perubahan status di sini -- murni mengisi pdfUrl, boleh dipanggil ulang
+        // (idempotent) kalau upload sebelumnya gagal.
+        (resource.data.type == 'personalia'
+          && resource.data.status == 'selesai'
+          && request.resource.data.status == 'selesai'
+          && (resource.data.spvApproval.approverId == request.auth.uid || resource.data.managerApproval.approverId == request.auth.uid)
+          && request.resource.data.pdfUrl is string
+          && request.resource.data.pdfUrl.size() > 0
+          && request.resource.data.pdfUrl.matches('^https://drive[.]google[.]com/.*')
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pdfUrl']))
       );
 
       allow delete: if isSuperadmin();

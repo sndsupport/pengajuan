@@ -126,10 +126,18 @@ export const reviewPersonaliaSubmissionSchema = z
     decision: z.enum(["approve", "reject"]),
     rejectionNote: z.string().nullish(),
     note: z.string().nullish(),
+    approverSignatureUrl: z.string().url().nullish(),
   })
   .refine((data) => data.decision !== "reject" || (data.rejectionNote && data.rejectionNote.trim().length > 0), {
     message: "rejectionNote wajib diisi saat reject",
     path: ["rejectionNote"],
-  });
+  })
+  .refine(
+    (data) => data.decision !== "approve" || (data.approverSignatureUrl && data.approverSignatureUrl.trim().length > 0),
+    {
+      message: "Tanda tangan approver wajib diisi saat approve",
+      path: ["approverSignatureUrl"],
+    }
+  );
 
 export type ReviewPersonaliaSubmissionInput = z.infer<typeof reviewPersonaliaSubmissionSchema>;

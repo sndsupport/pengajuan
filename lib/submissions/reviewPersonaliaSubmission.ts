@@ -1,6 +1,7 @@
 import { collection, doc, runTransaction, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { reviewPersonaliaSubmissionSchema, ReviewPersonaliaSubmissionInput } from "@/lib/schemas/submission";
+import { generateAndAttachPersonaliaPdf } from "@/lib/pdf/generateAndAttachPersonaliaPdf";
 import type { AppUser } from "@/lib/hooks/useAuth";
 
 export type ReviewPersonaliaSubmissionResult = { submissionId: string; status: "selesai" | "perlu_revisi" | "diajukan" };
@@ -83,6 +84,9 @@ export async function reviewPersonaliaSubmission(
     if (submission[ownField]) {
       throw new Error("Anda sudah memberikan approval untuk pengajuan ini.");
     }
+    if (!input.approverSignatureUrl) {
+      throw new Error("Tanda tangan approver wajib diisi saat approve.");
+    }
 
     const bothApproved = submission[otherField] != null;
     const approvalRecord = {
@@ -90,6 +94,7 @@ export async function reviewPersonaliaSubmission(
       approverName: caller.name,
       note: input.note ?? null,
       decidedAt: serverTimestamp(),
+      signatureUrl: input.approverSignatureUrl,
     };
 
     tx.update(submissionRef, {
@@ -110,6 +115,17 @@ export async function reviewPersonaliaSubmission(
 
     return bothApproved ? ("selesai" as const) : ("diajukan" as const);
   });
+
+  if (status === "selesai") {
+    // The approval itself already succeeded and committed -- a PDF failure here
+    // (e.g. Drive upload hiccup) shouldn't be reported as a failed review. The
+    // detail page offers a manual retry for this same generation step.
+    try {
+      await generateAndAttachPersonaliaPdf(input.submissionId, caller);
+    } catch (error) {
+      console.error("reviewPersonaliaSubmission: failed to generate PDF after dual approval", error);
+    }
+  }
 
   return { submissionId: input.submissionId, status };
 }

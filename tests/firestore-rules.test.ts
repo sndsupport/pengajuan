@@ -992,6 +992,22 @@ describe("firestore.rules", () => {
       const db = testEnv.authenticatedContext("uid-spv").firestore();
       await assertSucceeds(
         db.collection("submissions").doc("pers-partial-1").update({
+          spvApproval: {
+            approverId: "uid-spv",
+            approverName: "Siti Aminah",
+            note: null,
+            decidedAt: new Date(),
+            signatureUrl: "https://drive.google.com/uc?export=view&id=sig-spv",
+          },
+        })
+      );
+    });
+
+    it("denies a partial approval missing signatureUrl", async () => {
+      await seedPersonalia("pers-partial-nosig");
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("submissions").doc("pers-partial-nosig").update({
           spvApproval: { approverId: "uid-spv", approverName: "Siti Aminah", note: null, decidedAt: new Date() },
         })
       );
@@ -1003,7 +1019,13 @@ describe("firestore.rules", () => {
       await assertFails(
         db.collection("submissions").doc("pers-partial-2").update({
           status: "selesai",
-          spvApproval: { approverId: "uid-spv", approverName: "Siti Aminah", note: null, decidedAt: new Date() },
+          spvApproval: {
+            approverId: "uid-spv",
+            approverName: "Siti Aminah",
+            note: null,
+            decidedAt: new Date(),
+            signatureUrl: "https://drive.google.com/uc?export=view&id=sig-spv",
+          },
         })
       );
     });
@@ -1013,7 +1035,13 @@ describe("firestore.rules", () => {
       const db = testEnv.authenticatedContext("uid-spv").firestore();
       await assertFails(
         db.collection("submissions").doc("pers-partial-3").update({
-          managerApproval: { approverId: "uid-spv", approverName: "Siti Aminah", note: null, decidedAt: new Date() },
+          managerApproval: {
+            approverId: "uid-spv",
+            approverName: "Siti Aminah",
+            note: null,
+            decidedAt: new Date(),
+            signatureUrl: "https://drive.google.com/uc?export=view&id=sig-spv",
+          },
         })
       );
     });
@@ -1023,18 +1051,56 @@ describe("firestore.rules", () => {
       const db = testEnv.authenticatedContext("uid-spv").firestore();
       await assertFails(
         db.collection("submissions").doc("pers-partial-4").update({
-          spvApproval: { approverId: "uid-spv2", approverName: "Siti Aminah", note: null, decidedAt: new Date() },
+          spvApproval: {
+            approverId: "uid-spv2",
+            approverName: "Siti Aminah",
+            note: null,
+            decidedAt: new Date(),
+            signatureUrl: "https://drive.google.com/uc?export=view&id=sig-spv",
+          },
         })
       );
     });
 
     it("allows management to complete the second approval, status becomes selesai", async () => {
       await seedPersonalia("pers-final-1", {
-        spvApproval: { approverId: "uid-spv", approverName: "Siti Aminah", note: null, decidedAt: new Date() },
+        spvApproval: {
+          approverId: "uid-spv",
+          approverName: "Siti Aminah",
+          note: null,
+          decidedAt: new Date(),
+          signatureUrl: "https://drive.google.com/uc?export=view&id=sig-spv",
+        },
       });
       const db = testEnv.authenticatedContext("uid-mgmt").firestore();
       await assertSucceeds(
         db.collection("submissions").doc("pers-final-1").update({
+          status: "selesai",
+          completedAt: new Date(),
+          managerApproval: {
+            approverId: "uid-mgmt",
+            approverName: "Andi Wijaya",
+            note: null,
+            decidedAt: new Date(),
+            signatureUrl: "https://drive.google.com/uc?export=view&id=sig-mgmt",
+          },
+        })
+      );
+    });
+
+    it("denies completing final approval missing signatureUrl", async () => {
+      await seedPersonalia("pers-final-nosig", {
+        spvApproval: {
+          approverId: "uid-spv",
+          approverName: "Siti Aminah",
+          note: null,
+          decidedAt: new Date(),
+          signatureUrl: "https://drive.google.com/uc?export=view&id=sig-spv",
+        },
+      });
+      const db = testEnv.authenticatedContext("uid-mgmt").firestore();
+      await assertFails(
+        db.collection("submissions").doc("pers-final-nosig").update({
           status: "selesai",
           completedAt: new Date(),
           managerApproval: { approverId: "uid-mgmt", approverName: "Andi Wijaya", note: null, decidedAt: new Date() },
@@ -1049,7 +1115,13 @@ describe("firestore.rules", () => {
         db.collection("submissions").doc("pers-final-2").update({
           status: "selesai",
           completedAt: new Date(),
-          managerApproval: { approverId: "uid-mgmt", approverName: "Andi Wijaya", note: null, decidedAt: new Date() },
+          managerApproval: {
+            approverId: "uid-mgmt",
+            approverName: "Andi Wijaya",
+            note: null,
+            decidedAt: new Date(),
+            signatureUrl: "https://drive.google.com/uc?export=view&id=sig-mgmt",
+          },
         })
       );
     });
@@ -1059,7 +1131,13 @@ describe("firestore.rules", () => {
       const db = testEnv.authenticatedContext("uid-spv").firestore();
       await assertFails(
         db.collection("submissions").doc("pers-self-1").update({
-          spvApproval: { approverId: "uid-spv", approverName: "Siti Aminah", note: null, decidedAt: new Date() },
+          spvApproval: {
+            approverId: "uid-spv",
+            approverName: "Siti Aminah",
+            note: null,
+            decidedAt: new Date(),
+            signatureUrl: "https://drive.google.com/uc?export=view&id=sig-spv",
+          },
         })
       );
     });
@@ -1067,14 +1145,96 @@ describe("firestore.rules", () => {
     it("denies management from completing final approval on their own self-submitted personalia", async () => {
       await seedPersonalia("pers-self-2", {
         requesterId: "uid-mgmt",
-        spvApproval: { approverId: "uid-spv", approverName: "Siti Aminah", note: null, decidedAt: new Date() },
+        spvApproval: {
+          approverId: "uid-spv",
+          approverName: "Siti Aminah",
+          note: null,
+          decidedAt: new Date(),
+          signatureUrl: "https://drive.google.com/uc?export=view&id=sig-spv",
+        },
       });
       const db = testEnv.authenticatedContext("uid-mgmt").firestore();
       await assertFails(
         db.collection("submissions").doc("pers-self-2").update({
           status: "selesai",
           completedAt: new Date(),
-          managerApproval: { approverId: "uid-mgmt", approverName: "Andi Wijaya", note: null, decidedAt: new Date() },
+          managerApproval: {
+            approverId: "uid-mgmt",
+            approverName: "Andi Wijaya",
+            note: null,
+            decidedAt: new Date(),
+            signatureUrl: "https://drive.google.com/uc?export=view&id=sig-mgmt",
+          },
+        })
+      );
+    });
+
+    it("allows either approver to set pdfUrl once the submission is selesai", async () => {
+      await seedPersonalia("pers-pdf-1", {
+        status: "selesai",
+        spvApproval: {
+          approverId: "uid-spv",
+          approverName: "Siti Aminah",
+          note: null,
+          decidedAt: new Date(),
+          signatureUrl: "https://drive.google.com/uc?export=view&id=sig-spv",
+        },
+        managerApproval: {
+          approverId: "uid-mgmt",
+          approverName: "Andi Wijaya",
+          note: null,
+          decidedAt: new Date(),
+          signatureUrl: "https://drive.google.com/uc?export=view&id=sig-mgmt",
+        },
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertSucceeds(
+        db.collection("submissions").doc("pers-pdf-1").update({
+          pdfUrl: "https://drive.google.com/file/d/pdf-personalia-1/view",
+        })
+      );
+    });
+
+    it("denies someone who isn't either approver from setting pdfUrl", async () => {
+      await seedPersonalia("pers-pdf-2", {
+        status: "selesai",
+        spvApproval: {
+          approverId: "uid-spv",
+          approverName: "Siti Aminah",
+          note: null,
+          decidedAt: new Date(),
+          signatureUrl: "https://drive.google.com/uc?export=view&id=sig-spv",
+        },
+        managerApproval: {
+          approverId: "uid-mgmt",
+          approverName: "Andi Wijaya",
+          note: null,
+          decidedAt: new Date(),
+          signatureUrl: "https://drive.google.com/uc?export=view&id=sig-mgmt",
+        },
+      });
+      const db = testEnv.authenticatedContext("uid-admin").firestore();
+      await assertFails(
+        db.collection("submissions").doc("pers-pdf-2").update({
+          pdfUrl: "https://drive.google.com/file/d/pdf-personalia-2/view",
+        })
+      );
+    });
+
+    it("denies setting pdfUrl before the submission reaches selesai", async () => {
+      await seedPersonalia("pers-pdf-3", {
+        spvApproval: {
+          approverId: "uid-spv",
+          approverName: "Siti Aminah",
+          note: null,
+          decidedAt: new Date(),
+          signatureUrl: "https://drive.google.com/uc?export=view&id=sig-spv",
+        },
+      });
+      const db = testEnv.authenticatedContext("uid-spv").firestore();
+      await assertFails(
+        db.collection("submissions").doc("pers-pdf-3").update({
+          pdfUrl: "https://drive.google.com/file/d/pdf-personalia-3/view",
         })
       );
     });

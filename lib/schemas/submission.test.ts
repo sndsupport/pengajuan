@@ -367,12 +367,26 @@ describe("reviewPersonaliaSubmissionSchema", () => {
   });
 
   it("accepts approve without requiring a note", () => {
-    const result = reviewPersonaliaSubmissionSchema.safeParse({ submissionId: "abc", decision: "approve" });
+    const result = reviewPersonaliaSubmissionSchema.safeParse({
+      submissionId: "abc",
+      decision: "approve",
+      approverSignatureUrl: "https://drive.google.com/uc?export=view&id=sig",
+    });
     expect(result.success).toBe(true);
   });
 
   it("accepts approve with an optional note", () => {
-    const result = reviewPersonaliaSubmissionSchema.safeParse({ submissionId: "abc", decision: "approve", note: "OK" });
+    const result = reviewPersonaliaSubmissionSchema.safeParse({
+      submissionId: "abc",
+      decision: "approve",
+      note: "OK",
+      approverSignatureUrl: "https://drive.google.com/uc?export=view&id=sig",
+    });
     expect(result.success).toBe(true);
+  });
+
+  it("rejects approve without approverSignatureUrl", () => {
+    const result = reviewPersonaliaSubmissionSchema.safeParse({ submissionId: "abc", decision: "approve" });
+    expect(result.success).toBe(false);
   });
 });

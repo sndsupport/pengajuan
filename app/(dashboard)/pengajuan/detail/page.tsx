@@ -11,6 +11,7 @@ import { TYPE_LABEL, PERSONALIA_SUBTYPE_LABEL } from "@/lib/schemas/submission";
 import { confirmSentToGa } from "@/lib/submissions/confirmSentToGa";
 import { markAsDone } from "@/lib/submissions/markAsDone";
 import { generateAndAttachSubmissionPdf } from "@/lib/pdf/generateAndAttachSubmissionPdf";
+import { generateAndAttachPersonaliaPdf } from "@/lib/pdf/generateAndAttachPersonaliaPdf";
 import { SignaturePlacementModal } from "@/components/pdf/SignaturePlacementModal";
 import type { SubmissionPdfData, SubmissionPdfItem } from "@/lib/pdf/pdfTemplate";
 import type { SignaturePositionPx } from "@/lib/pdf/signaturePosition";
@@ -39,6 +40,8 @@ function PengajuanDetailContent() {
   const [markDoneError, setMarkDoneError] = useState<string | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [generatingPersonaliaPdf, setGeneratingPersonaliaPdf] = useState(false);
+  const [personaliaPdfError, setPersonaliaPdfError] = useState<string | null>(null);
   const [hcCopyFeedback, setHcCopyFeedback] = useState(false);
   const [hcCopyError, setHcCopyError] = useState<string | null>(null);
   const [personaliaAttachmentUrl, setPersonaliaAttachmentUrl] = useState<string | null>(null);
@@ -219,6 +222,19 @@ function PengajuanDetailContent() {
       setPdfError(err instanceof Error ? err.message : "Gagal menyiapkan preview PDF.");
     } finally {
       setGeneratingPdf(false);
+    }
+  }
+
+  async function handleGeneratePersonaliaPdf() {
+    if (!submission || !appUser) return;
+    setPersonaliaPdfError(null);
+    setGeneratingPersonaliaPdf(true);
+    try {
+      await generateAndAttachPersonaliaPdf(submission.id, appUser);
+    } catch (err) {
+      setPersonaliaPdfError(err instanceof Error ? err.message : "Gagal membuat PDF.");
+    } finally {
+      setGeneratingPersonaliaPdf(false);
     }
   }
 
@@ -427,9 +443,45 @@ function PengajuanDetailContent() {
                 rel="noreferrer"
                 className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
               >
-                Lihat Dokumen PDF
+                Lihat Dokumen Lampiran
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
+            )}
+            {submission.status === "selesai" && (
+              <div className="space-y-2 border-t pt-3">
+                {submission.pdfUrl ? (
+                  <a
+                    href={submission.pdfUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
+                  >
+                    Lihat PDF Persetujuan
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                ) : (
+                  appUser &&
+                  (submission.spvApproval?.approverId === appUser.uid ||
+                    submission.managerApproval?.approverId === appUser.uid) && (
+                    <>
+                      <p className="text-sm text-muted-foreground">PDF persetujuan belum berhasil dibuat.</p>
+                      {personaliaPdfError && (
+                        <p role="alert" className="text-sm text-destructive">
+                          {personaliaPdfError}
+                        </p>
+                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={generatingPersonaliaPdf}
+                        onClick={handleGeneratePersonaliaPdf}
+                      >
+                        {generatingPersonaliaPdf ? "Memproses..." : "Coba Generate PDF"}
+                      </Button>
+                    </>
+                  )
+                )}
+              </div>
             )}
             {submission.status === "diajukan" && (
               <p className="text-muted-foreground">

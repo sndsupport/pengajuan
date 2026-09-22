@@ -160,3 +160,89 @@ export function buildSubmissionPdfHtml(data: SubmissionPdfData): string {
 </body>
 </html>`;
 }
+
+const PERSONALIA_SUBTYPE_LABEL: Record<"lembur" | "cuti" | "izin", string> = {
+  lembur: "Lembur",
+  cuti: "Cuti",
+  izin: "Izin",
+};
+
+export type PersonaliaPdfData = {
+  submissionNumber: string;
+  subType: "lembur" | "cuti" | "izin";
+  employeeName: string;
+  branch: string;
+  department: string;
+  position: string;
+  periodStart: string;
+  periodEnd: string;
+  submittedAt: Date;
+  completedAt: Date;
+  spvApproverName: string;
+  spvSignatureUrl: string;
+  managerApproverName: string;
+  managerSignatureUrl: string;
+};
+
+// Unlike buildSubmissionPdfHtml, this layout has no variable-height items table --
+// content is always the same handful of fields, so both signatures are known and can
+// be embedded directly (no interactive drag-to-place canvas composite step needed).
+export function buildPersonaliaPdfHtml(data: PersonaliaPdfData): string {
+  return `<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&family=Public+Sans:wght@400;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Public Sans', Arial, sans-serif; color: #1f2937; margin: 0; padding: 32px; font-size: 12px; }
+  h1 { font-family: 'Plus Jakarta Sans', Arial, sans-serif; font-size: 16px; margin: 0 0 4px; }
+  .header { border-bottom: 3px solid #7C3AED; padding-bottom: 12px; margin-bottom: 16px; }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; margin-bottom: 16px; }
+  .signatures { display: flex; justify-content: space-between; margin-top: 40px; }
+  .signature-block { width: 45%; text-align: center; }
+  .signature-img-box { width: 180px; height: 60px; margin: 8px auto; display: flex; align-items: center; justify-content: center; }
+  .signature-img-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .signature-line { border-top: 1px solid #1f2937; margin-top: 4px; padding-top: 4px; }
+  .footer { margin-top: 32px; font-size: 9px; color: #6b7280; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>PT TRIDAYA SINERGI INDONESIA</h1>
+    <div>FORMULIR PENGAJUAN ${PERSONALIA_SUBTYPE_LABEL[data.subType].toUpperCase()}</div>
+    <div class="mono">${escapeHtml(data.submissionNumber)}</div>
+  </div>
+  <div class="info-grid">
+    <div>
+      <div><strong>Nama Karyawan:</strong> ${escapeHtml(data.employeeName)}</div>
+      <div><strong>Cabang:</strong> ${escapeHtml(data.branch)}</div>
+      <div><strong>Departemen:</strong> ${escapeHtml(data.department)}</div>
+      <div><strong>Posisi:</strong> ${escapeHtml(data.position)}</div>
+    </div>
+    <div>
+      <div><strong>Jenis Pengajuan:</strong> ${PERSONALIA_SUBTYPE_LABEL[data.subType]}</div>
+      <div><strong>Periode:</strong> <span class="mono">${escapeHtml(data.periodStart)} s/d ${escapeHtml(data.periodEnd)}</span></div>
+      <div><strong>Tanggal Diajukan:</strong> <span class="mono">${formatDate(data.submittedAt)}</span></div>
+      <div><strong>Tanggal Selesai:</strong> <span class="mono">${formatDate(data.completedAt)}</span></div>
+    </div>
+  </div>
+  <div class="signatures">
+    <div class="signature-block">
+      <div>Menyetujui</div>
+      <div class="signature-img-box"><img src="${escapeHtml(data.spvSignatureUrl)}" alt="Tanda tangan AWS Supervisor" /></div>
+      <div class="signature-line">${escapeHtml(data.spvApproverName)}<br/>AWS Supervisor</div>
+    </div>
+    <div class="signature-block">
+      <div>Mengetahui</div>
+      <div class="signature-img-box"><img src="${escapeHtml(data.managerSignatureUrl)}" alt="Tanda tangan Operational Manager" /></div>
+      <div class="signature-line">${escapeHtml(data.managerApproverName)}<br/>Operational Manager</div>
+    </div>
+  </div>
+  <div class="footer">Dokumen digenerate otomatis oleh sistem pada ${formatDateTime(new Date())}.</div>
+</body>
+</html>`;
+}

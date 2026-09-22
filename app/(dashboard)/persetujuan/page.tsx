@@ -196,6 +196,7 @@ export default function PersetujuanPage() {
 
   async function handlePersonaliaDecision(submissionId: string, decision: "approve" | "reject") {
     if (!appUser) return;
+    if (decision === "approve" && !signatureBySubmission[submissionId]) return;
     setBusyId(submissionId);
     setActionErrorBySubmission((prev) => ({ ...prev, [submissionId]: "" }));
     try {
@@ -204,6 +205,7 @@ export default function PersetujuanPage() {
           submissionId,
           decision,
           rejectionNote: noteBySubmission[submissionId],
+          approverSignatureUrl: decision === "approve" ? signatureBySubmission[submissionId] : null,
         },
         appUser
       );
@@ -240,6 +242,8 @@ export default function PersetujuanPage() {
               const ownApproval = appUser?.role === "spv" ? row.spvApproval : row.managerApproval;
               const otherApproval = appUser?.role === "spv" ? row.managerApproval : row.spvApproval;
               const otherRoleLabel = appUser?.role === "spv" ? "Operational Manager" : "AWS Supervisor";
+              const mode = signatureModeBySubmission[row.id] ?? "gambar";
+              const hasSignature = !!signatureBySubmission[row.id];
               return (
                 <Card key={row.id}>
                   <CardHeader className="flex-row items-center justify-between space-y-0 border-b">
@@ -262,15 +266,54 @@ export default function PersetujuanPage() {
                         Anda sudah menyetujui pengajuan ini{otherApproval ? "" : `, menunggu ${otherRoleLabel}`}.
                       </p>
                     ) : (
-                      <div className="space-y-1.5">
-                        <Label htmlFor={`note-${row.id}`}>Catatan (wajib jika tolak)</Label>
-                        <Textarea
-                          id={`note-${row.id}`}
-                          placeholder="Tulis catatan revisi di sini..."
-                          value={noteBySubmission[row.id] ?? ""}
-                          onChange={(e) => setNoteBySubmission((prev) => ({ ...prev, [row.id]: e.target.value }))}
-                        />
-                      </div>
+                      <>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`note-${row.id}`}>Catatan (wajib jika tolak)</Label>
+                          <Textarea
+                            id={`note-${row.id}`}
+                            placeholder="Tulis catatan revisi di sini..."
+                            value={noteBySubmission[row.id] ?? ""}
+                            onChange={(e) => setNoteBySubmission((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Tanda Tangan Approver (wajib untuk Setujui)</Label>
+                          <div className="flex gap-2" role="group" aria-label="Mode tanda tangan">
+                            <Button
+                              type="button"
+                              variant={mode === "gambar" ? "default" : "outline"}
+                              size="sm"
+                              aria-pressed={mode === "gambar"}
+                              onClick={() => handleSignatureModeChange(row.id, "gambar")}
+                            >
+                              Gambar
+                            </Button>
+                            <Button
+                              type="button"
+                              variant={mode === "upload" ? "default" : "outline"}
+                              size="sm"
+                              aria-pressed={mode === "upload"}
+                              onClick={() => handleSignatureModeChange(row.id, "upload")}
+                            >
+                              Upload File
+                            </Button>
+                          </div>
+                          {mode === "gambar" ? (
+                            <SignaturePad
+                              onChange={(dataUrl) =>
+                                setSignatureBySubmission((prev) => ({ ...prev, [row.id]: dataUrl ?? "" }))
+                              }
+                            />
+                          ) : (
+                            <FileUpload
+                              purpose="signature"
+                              onUploaded={(file) =>
+                                setSignatureBySubmission((prev) => ({ ...prev, [row.id]: file.fileUrl }))
+                              }
+                            />
+                          )}
+                        </div>
+                      </>
                     )}
                     {actionErrorBySubmission[row.id] && (
                       <p role="alert" className="text-sm text-destructive">
@@ -280,7 +323,7 @@ export default function PersetujuanPage() {
                     <div className="flex gap-2 pt-1">
                       <Button
                         size="lg"
-                        disabled={busyId === row.id || !appUser || !!ownApproval}
+                        disabled={busyId === row.id || !appUser || !!ownApproval || !hasSignature}
                         onClick={() => handlePersonaliaDecision(row.id, "approve")}
                       >
                         <Check className="h-4 w-4" />
