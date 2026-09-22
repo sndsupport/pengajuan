@@ -256,6 +256,7 @@ export default function PersetujuanPage() {
                     <StatusBadge status="diajukan" />
                   </CardHeader>
                   <CardContent className="space-y-4 pt-6">
+                    <AttachmentsList submissionId={row.id} />
                     {ownApproval ? (
                       <p className="text-sm text-muted-foreground">
                         Anda sudah menyetujui pengajuan ini{otherApproval ? "" : `, menunggu ${otherRoleLabel}`}.
